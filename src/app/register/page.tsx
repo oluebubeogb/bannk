@@ -54,11 +54,11 @@ export default function RegisterPage() {
             In development the WordKey is shown here. In production it is emailed.
           </p>
           <div className="rounded-xl bg-[var(--bg)] border border-[var(--border)] p-4 mb-6 text-center">
-            <code className="text-[var(--accent)] text-lg font-mono tracking-wide">{devKey}</code>
+            <code className="text-[var(--accent-ink)] text-lg font-mono tracking-wide">{devKey}</code>
           </div>
           <button
             onClick={() => router.push("/verify")}
-            className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold"
+            className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold"
           >
             Continue to verify
           </button>
@@ -136,7 +136,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold disabled:opacity-60 mt-2"
+          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold disabled:opacity-60 mt-2"
         >
           {loading ? "Creating…" : "Create account"}
         </button>
@@ -144,7 +144,7 @@ export default function RegisterPage() {
 
       <p className="text-center text-sm text-[var(--text-muted)] mt-6">
         Already have an account?{" "}
-        <Link href="/login" className="text-[var(--accent)]">
+        <Link href="/login" className="text-[var(--accent-ink)]">
           Sign in
         </Link>
       </p>

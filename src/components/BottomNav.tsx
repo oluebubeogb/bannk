@@ -25,7 +25,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] sm:text-xs ${
-                active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
+                active ? "text-[var(--accent-ink)]" : "text-[var(--text-muted)]"
               }`}
             >
               <span className="text-lg leading-none">{item.icon}</span>

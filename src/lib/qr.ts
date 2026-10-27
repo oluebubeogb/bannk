@@ -16,6 +16,6 @@ export async function generateProfileQrDataUrl(username: string): Promise<string
     errorCorrectionLevel: "M",
     margin: 2,
     width: 280,
-    color: { dark: "#0c0f14", light: "#ffffff" },
+    color: { dark: "#16181d", light: "#ffffff" },
   });
 }

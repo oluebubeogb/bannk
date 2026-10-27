@@ -31,7 +31,8 @@ export default function LoginPage() {
         setError(data.error || "Login failed");
         return;
       }
-      router.push("/home");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/home");
     } catch {
       setError("Network error");
     } finally {
@@ -75,7 +76,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold disabled:opacity-60"
+          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold disabled:opacity-60"
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
@@ -83,7 +84,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-[var(--text-muted)] mt-6">
         No account?{" "}
-        <Link href="/register" className="text-[var(--accent)]">
+        <Link href="/register" className="text-[var(--accent-ink)]">
           Create one
         </Link>
       </p>

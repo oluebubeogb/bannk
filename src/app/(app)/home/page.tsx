@@ -61,7 +61,7 @@ export default function HomePage() {
           <p className="text-sm text-[var(--text-muted)]">Welcome back</p>
           <h1 className="text-xl font-bold">{data.displayName || data.username}</h1>
         </div>
-        <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold text-[var(--accent)]">
+        <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold text-[var(--accent-ink)]">
           {(data.displayName || data.username || "?").charAt(0).toUpperCase()}
         </div>
       </header>
@@ -75,7 +75,7 @@ export default function HomePage() {
         <div className="flex gap-3">
           <Link
             href="/send"
-            className="flex-1 h-11 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold text-sm flex items-center justify-center"
+            className="flex-1 h-11 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold text-sm flex items-center justify-center"
           >
             Send
           </Link>

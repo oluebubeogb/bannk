@@ -46,11 +46,11 @@ export default function ProfilePage() {
       <h1 className="text-xl font-bold mb-6">Profile</h1>
 
       <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-5 text-center">
-        <div className="w-16 h-16 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-2xl font-bold text-[var(--accent)] mx-auto mb-3">
+        <div className="w-16 h-16 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-2xl font-bold text-[var(--accent-ink)] mx-auto mb-3">
           {(data.displayName || data.username || "?").charAt(0).toUpperCase()}
         </div>
         <p className="text-lg font-semibold">{data.displayName}</p>
-        <p className="text-sm text-[var(--accent)]">@{data.username}</p>
+        <p className="text-sm text-[var(--accent-ink)]">@{data.username}</p>
         <p className="text-xs text-[var(--text-muted)] mt-2">{data.email}</p>
         <Link
           href={`/u/${data.username}`}
@@ -98,6 +98,13 @@ export default function ProfilePage() {
           Wallet
         </Link>
       </div>
+
+      <Link
+        href="/wallet#statement"
+        className="w-full h-11 mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm font-medium flex items-center justify-center"
+      >
+        Statements &amp; receipts
+      </Link>
 
       <button
         onClick={logout}

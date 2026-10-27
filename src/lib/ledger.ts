@@ -5,7 +5,18 @@
  * Clean start — creates system issuance account on first use (no seed required).
  */
 
+import { randomBytes } from "crypto";
 import { prisma } from "./prisma";
+
+/** Human-friendly transaction reference, e.g. BNK-20261027-7K3QX9MD */
+export function generateReference(now = new Date()) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(8);
+  let code = "";
+  for (const b of bytes) code += alphabet[b % alphabet.length];
+  const d = now.toISOString().slice(0, 10).replace(/-/g, "");
+  return `BNK-${d}-${code}`;
+}
 
 export type JournalType =
   | "transfer"
@@ -60,7 +71,7 @@ export async function postJournal(
         type,
         status: "posted",
         idempotencyKey: opts.idempotencyKey,
-        reference: opts.reference,
+        reference: opts.reference ?? generateReference(),
         note: opts.note,
         entries: {
           create: entries.map((e) => ({
@@ -280,6 +291,7 @@ export async function executeTransfer(params: {
         type: "transfer",
         status: "posted",
         idempotencyKey,
+        reference: generateReference(),
         note,
         entries: {
           create: [

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { StatementPanel } from "@/components/StatementPanel";
 
 function formatMoney(minor: number, currency: string) {
   const value = minor / 100;
@@ -66,6 +68,8 @@ export default function WalletPage() {
         </div>
       )}
 
+      <StatementPanel />
+
       <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Recent activity</h2>
       <div className="space-y-2">
         {(data.transactions || []).length === 0 && (
@@ -74,9 +78,10 @@ export default function WalletPage() {
           </p>
         )}
         {(data.transactions || []).map((tx: any) => (
-          <div
+          <Link
+            href={`/receipt/${tx.id}`}
             key={tx.id + tx.direction}
-            className="flex items-center justify-between rounded-xl bg-[var(--surface)] border border-[var(--border)] px-4 py-3"
+            className="flex items-center justify-between rounded-xl bg-[var(--surface)] border border-[var(--border)] px-4 py-3 hover:border-[var(--text-muted)] transition-colors"
           >
             <div>
               <p className="text-sm font-medium capitalize">{tx.type}</p>
@@ -95,7 +100,7 @@ export default function WalletPage() {
               {tx.direction === "credit" ? "+" : "−"}
               {formatMoney(tx.amountMinor, tx.currency)}
             </p>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

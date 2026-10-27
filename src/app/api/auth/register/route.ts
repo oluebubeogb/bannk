@@ -8,6 +8,7 @@ import {
   generateWordKey,
   hashWordKey,
 } from "@/lib/auth";
+import { sendWordKeyMail, isMailConfigured } from "@/lib/mail";
 
 const schema = z.object({
   email: z.string().email(),
@@ -72,16 +73,25 @@ export async function POST(req: NextRequest) {
       include: { profile: true },
     });
 
-    // In production: send wordKey via email. For MVP we return it in the response
-    // (and log it) so the developer can verify easily.
-    console.log(`[WordKey for ${user.email}]: ${wordKey}`);
+    // Deliver WordKey by email (console fallback when mail is unset).
+    let mailSent = false;
+    try {
+      await sendWordKeyMail(user.email, user.profile?.username || usernameNorm, wordKey);
+      mailSent = isMailConfigured();
+    } catch (e) {
+      console.error("[register] WordKey mail failed", e);
+    }
 
+    const isProd = process.env.NODE_ENV === "production";
     return NextResponse.json({
       userId: user.id,
       username: user.profile?.username,
-      message: "Account created. Verify with the WordKey sent to your email.",
-      // DEV ONLY — remove in production
-      devWordKey: process.env.NODE_ENV === "development" ? wordKey : undefined,
+      message: mailSent
+        ? "Account created. Check your email for your WordKey."
+        : "Account created. Verify with your WordKey.",
+      mailSent,
+      // Never exposed in production.
+      devWordKey: isProd ? undefined : wordKey,
     });
   } catch (err: any) {
     if (err instanceof z.ZodError) {

@@ -7,14 +7,14 @@ export default function LandingPage() {
       <header className="px-5 pt-12 pb-8 max-w-lg mx-auto w-full">
         <div className="flex items-center gap-2 mb-10">
           <div className="w-9 h-9 rounded-xl bg-[var(--accent)] flex items-center justify-center">
-            <span className="text-[var(--bg)] font-bold text-lg">B</span>
+            <span className="text-[var(--on-accent)] font-bold text-lg">B</span>
           </div>
           <span className="text-xl font-semibold tracking-tight">Bannk</span>
         </div>
 
         <h1 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight mb-4">
           Banking without<br />
-          <span className="text-[var(--accent)]">borders.</span>
+          <span className="text-[var(--accent-ink)]">borders.</span>
         </h1>
         <p className="text-[var(--text-muted)] text-base leading-relaxed mb-8 max-w-sm">
           A virtual financial economy. Build identity, send credits, invest in
@@ -24,7 +24,7 @@ export default function LandingPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
             href="/register"
-            className="inline-flex items-center justify-center h-12 px-6 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold text-base hover:bg-[var(--accent-dim)] transition-colors"
+            className="inline-flex items-center justify-center h-12 px-6 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold text-base hover:bg-[var(--accent-dim)] transition-colors"
           >
             Get started
           </Link>

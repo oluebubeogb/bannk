@@ -42,11 +42,8 @@ export default function SendPage() {
         setError(data.error || "Transfer failed");
         return;
       }
-      setSuccess(`Sent successfully. Ref: ${data.transactionId.slice(0, 8)}…`);
-      setUsername("");
-      setAmount("");
-      setNote("");
-      setTimeout(() => router.push("/wallet"), 1500);
+      setSuccess("Sent. Opening your receipt…");
+      router.push(`/receipt/${data.transactionId}?new=1`);
     } catch {
       setError("Network error");
     } finally {
@@ -110,7 +107,7 @@ export default function SendPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold disabled:opacity-60"
+          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold disabled:opacity-60"
         >
           {loading ? "Sending…" : "Send"}
         </button>

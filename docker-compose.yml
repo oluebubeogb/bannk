@@ -17,6 +17,7 @@ services:
       timeout: 5s
       retries: 10
 
+  # Optional — unused in v1
   redis:
     image: redis:7-alpine
     container_name: bannk-redis

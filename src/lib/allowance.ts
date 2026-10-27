@@ -8,7 +8,9 @@ import { grantAllowance, ensureWallet } from "./ledger";
 
 const PERIOD_DAYS = Number(process.env.ALLOWANCE_PERIOD_DAYS || 7);
 const WEEKLY_MINOR = Number(process.env.WEEKLY_ALLOWANCE_MINOR || 250000);
-const INITIAL_MINOR = Number(process.env.INITIAL_ALLOWANCE_MINOR || 500000);
+/** Opening balance: ₦1,000,050.00 = 100005000 kobo (2 decimal minor units). */
+export const DEFAULT_INITIAL_ALLOWANCE_MINOR = 100005000;
+const INITIAL_MINOR = Number(process.env.INITIAL_ALLOWANCE_MINOR || DEFAULT_INITIAL_ALLOWANCE_MINOR);
 
 /** Get the start of the current weekly period (aligned to a fixed epoch Monday-style). */
 export function getCurrentPeriodBounds(now = new Date()) {
@@ -53,7 +55,7 @@ export async function ensureCurrentAllowancePeriod(userId: string) {
 export async function grantInitialAllowance(userId: string, currencyCode: string) {
   const key = `initial-allowance:${userId}`;
   await ensureWallet(userId, currencyCode);
-  await grantAllowance(userId, currencyCode, INITIAL_MINOR, key, "Initial welcome allowance");
+  await grantAllowance(userId, currencyCode, INITIAL_MINOR, key, "Opening balance");
   await ensureCurrentAllowancePeriod(userId);
   return { amountMinor: INITIAL_MINOR, currencyCode };
 }
@@ -70,6 +72,15 @@ export async function grantWeeklyAllowanceIfDue(userId: string, currencyCode: st
     where: { idempotencyKey: key },
   });
   if (existing) {
+    return { granted: false, amountMinor: 0, period };
+  }
+
+  // The opening balance covers the signup week — weekly grants start next period.
+  const opening = await prisma.journalTransaction.findUnique({
+    where: { idempotencyKey: `initial-allowance:${userId}` },
+    select: { createdAt: true },
+  });
+  if (opening && opening.createdAt >= period.periodStart) {
     return { granted: false, amountMinor: 0, period };
   }
 
@@ -93,4 +104,45 @@ export async function getAllowanceStatus(userId: string) {
     usedMinor: period.usedMinor,
     remainingMinor: Math.max(0, period.capMinor - period.usedMinor),
   };
+}
+
+/**
+ * Scheduled job: grant weekly allowance to every verified, active user who is due.
+ * Idempotent per user+period (journal idempotency key), safe to run repeatedly.
+ */
+export async function grantWeeklyAllowancesForAll(opts: { batchSize?: number } = {}) {
+  const batchSize = opts.batchSize ?? 200;
+  let cursor: string | undefined;
+  let scanned = 0;
+  let granted = 0;
+  const errors: Array<{ userId: string; error: string }> = [];
+
+  for (;;) {
+    const users = await prisma.user.findMany({
+      where: {
+        status: "active",
+        emailVerifiedAt: { not: null },
+        email: { not: "system@bannk.internal" },
+      },
+      select: { id: true, profile: { select: { homeCurrency: true } } },
+      orderBy: { id: "asc" },
+      take: batchSize,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    });
+    if (users.length === 0) break;
+
+    for (const u of users) {
+      scanned++;
+      try {
+        const r = await grantWeeklyAllowanceIfDue(u.id, u.profile?.homeCurrency || "NGN");
+        if (r.granted) granted++;
+      } catch (e: any) {
+        errors.push({ userId: u.id, error: String(e?.message || e) });
+      }
+    }
+    cursor = users[users.length - 1].id;
+    if (users.length < batchSize) break;
+  }
+
+  return { scanned, granted, errors };
 }

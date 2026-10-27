@@ -10,11 +10,38 @@ export default function VerifyPage() {
   const [wordKey, setWordKey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [info, setInfo] = useState("");
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
-    const pending = sessionStorage.getItem("bannk_pending_email");
+    const fromUrl = new URLSearchParams(window.location.search).get("email");
+    const pending = fromUrl || sessionStorage.getItem("bannk_pending_email");
     if (pending) setEmail(pending);
   }, []);
+
+  async function resend() {
+    setError("");
+    setInfo("");
+    if (!email) {
+      setError("Enter your email first");
+      return;
+    }
+    setResending(true);
+    try {
+      const res = await fetch("/api/auth/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error || "Couldn't resend");
+      else setInfo(data.devWordKey ? `Dev WordKey: ${data.devWordKey}` : data.message);
+    } catch {
+      setError("Network error");
+    } finally {
+      setResending(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,13 +102,22 @@ export default function VerifyPage() {
         </div>
 
         {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+        {info && <p className="text-sm text-[var(--success)]">{info}</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold disabled:opacity-60"
+          className="w-full h-12 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold disabled:opacity-60"
         >
           {loading ? "Verifying…" : "Verify & enter Bannk"}
+        </button>
+        <button
+          type="button"
+          onClick={resend}
+          disabled={resending}
+          className="w-full h-11 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm font-medium disabled:opacity-60"
+        >
+          {resending ? "Sending…" : "Resend WordKey"}
         </button>
       </form>
     </div>

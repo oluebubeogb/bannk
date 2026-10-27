@@ -5,15 +5,22 @@ export const metadata: Metadata = {
   title: "Bannk — Banking without borders",
   description: "Virtual financial economy. Global-first PWA with African identity.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Bannk",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c0f14",
+  themeColor: "#f6f5f1",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

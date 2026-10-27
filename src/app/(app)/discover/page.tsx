@@ -63,7 +63,7 @@ export default function DiscoverPage() {
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="text-sm text-[var(--accent)] font-medium"
+          className="text-sm text-[var(--accent-ink)] font-medium"
         >
           {showCreate ? "Cancel" : "+ Add"}
         </button>
@@ -118,7 +118,7 @@ export default function DiscoverPage() {
           {err && <p className="text-sm text-[var(--danger)]">{err}</p>}
           <button
             type="submit"
-            className="w-full h-11 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold"
+            className="w-full h-11 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold"
           >
             Publish listing
           </button>
@@ -146,7 +146,7 @@ export default function DiscoverPage() {
               <div className="flex items-start justify-between gap-2 mb-1">
                 <h3 className="font-semibold leading-snug">{l.title}</h3>
                 {l.isSponsored && (
-                  <span className="shrink-0 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)]">
+                  <span className="shrink-0 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent-ink)]">
                     Sponsored
                   </span>
                 )}
@@ -165,7 +165,7 @@ export default function DiscoverPage() {
                   href={l.externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-[var(--accent)]"
+                  className="text-sm text-[var(--accent-ink)]"
                 >
                   Open link →
                 </a>

@@ -175,7 +175,7 @@ export default function ExchangePage() {
           {err && <p className="text-sm text-[var(--danger)]">{err}</p>}
           <button
             type="submit"
-            className="w-full h-11 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold"
+            className="w-full h-11 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold"
           >
             Create asset
           </button>
@@ -185,7 +185,7 @@ export default function ExchangePage() {
       {!showBoot && (
         <button
           onClick={() => setShowBoot(true)}
-          className="text-xs text-[var(--accent)] mb-4"
+          className="text-xs text-[var(--accent-ink)] mb-4"
         >
           + Add asset
         </button>
@@ -233,7 +233,7 @@ export default function ExchangePage() {
               onClick={() => setSide("buy")}
               className={`flex-1 h-10 rounded-lg text-sm font-medium ${
                 side === "buy"
-                  ? "bg-[var(--accent)] text-[var(--bg)]"
+                  ? "bg-[var(--accent)] text-[var(--on-accent)]"
                   : "border border-[var(--border)]"
               }`}
             >
@@ -244,7 +244,7 @@ export default function ExchangePage() {
               onClick={() => setSide("sell")}
               className={`flex-1 h-10 rounded-lg text-sm font-medium ${
                 side === "sell"
-                  ? "bg-[var(--accent)] text-[var(--bg)]"
+                  ? "bg-[var(--accent)] text-[var(--on-accent)]"
                   : "border border-[var(--border)]"
               }`}
             >
@@ -264,7 +264,7 @@ export default function ExchangePage() {
           <button
             onClick={trade}
             disabled={trading}
-            className="w-full h-11 rounded-xl bg-[var(--accent)] text-[var(--bg)] font-semibold disabled:opacity-60"
+            className="w-full h-11 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold disabled:opacity-60"
           >
             {trading ? "Executing…" : `Confirm ${side}`}
           </button>
