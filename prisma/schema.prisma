@@ -1,0 +1,409 @@
+// Bannk — Prisma schema (PostgreSQL)
+// Weekly allowance · Double-entry ledger · Exchange · Discover · Community
+// No seed data — start empty
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity ───────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  emailNormalized String    @unique
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  status          String    @default("active") // active | suspended | deleted
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  profile                Profile?
+  sessions               Session[]
+  verificationChallenges VerificationChallenge[]
+  wallets                Wallet[]
+  allowancePeriods       AllowancePeriod[]
+  rewardGrants           RewardGrant[]
+  tradeOrders            TradeOrder[]
+  holdings               Holding[]
+  businesses             Business[]
+  bookmarks              Bookmark[]
+  campaignEvents         CampaignEvent[]
+  notifications          Notification[]
+  auditEvents            AuditEvent[]
+  reports                Report[]
+}
+
+model Profile {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  username     String  @unique
+  displayName  String?
+  avatarUrl    String?
+  homeCurrency String  @default("NGN")
+  locale       String  @default("en")
+  visibility   String  @default("public") // public | private
+  bio          String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationChallenge {
+  id           String    @id @default(cuid())
+  userId       String
+  verifierHash String
+  expiresAt    DateTime
+  attemptCount Int       @default(0)
+  consumedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([userId])
+}
+
+// ─── Virtual economy ────────────────────────────────────────
+
+model Wallet {
+  id           String   @id @default(cuid())
+  ownerUserId  String
+  currencyCode String
+  walletType   String   @default("personal") // personal | system
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+
+  owner             User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  ledgerAccounts    LedgerAccount[]
+  sentTransfers     Transfer[]      @relation("SenderWallet")
+  receivedTransfers Transfer[]      @relation("RecipientWallet")
+
+  @@unique([ownerUserId, currencyCode])
+  @@index([ownerUserId])
+}
+
+model LedgerAccount {
+  id          String @id @default(cuid())
+  walletId    String
+  accountType String // available | reserved | issuance
+  status      String @default("active")
+
+  wallet         Wallet         @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  journalEntries JournalEntry[]
+
+  @@index([walletId, accountType])
+}
+
+model JournalTransaction {
+  id             String   @id @default(cuid())
+  type           String   // transfer | allowance | reward | trade | adjustment | issuance
+  status         String   @default("posted") // pending | posted | reversed
+  idempotencyKey String   @unique
+  reference      String?
+  note           String?
+  createdAt      DateTime @default(now())
+
+  entries  JournalEntry[]
+  transfer Transfer?
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+model JournalEntry {
+  id              String @id @default(cuid())
+  transactionId   String
+  ledgerAccountId String
+  amountMinor     Int // always positive integer
+  direction       String // debit | credit
+
+  transaction   JournalTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  ledgerAccount LedgerAccount      @relation(fields: [ledgerAccountId], references: [id])
+
+  @@index([ledgerAccountId])
+  @@index([transactionId])
+}
+
+model Transfer {
+  id                String  @id @default(cuid())
+  transactionId     String  @unique
+  senderWalletId    String
+  recipientWalletId String
+  status            String  @default("completed")
+  note              String?
+
+  transaction     JournalTransaction @relation(fields: [transactionId], references: [id])
+  senderWallet    Wallet             @relation("SenderWallet", fields: [senderWalletId], references: [id])
+  recipientWallet Wallet             @relation("RecipientWallet", fields: [recipientWalletId], references: [id])
+
+  @@index([senderWalletId])
+  @@index([recipientWalletId])
+}
+
+model AllowancePeriod {
+  id          String   @id @default(cuid())
+  userId      String
+  periodStart DateTime
+  periodEnd   DateTime
+  capMinor    Int
+  usedMinor   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodStart])
+  @@index([userId, periodEnd])
+}
+
+model RewardGrant {
+  id             String   @id @default(cuid())
+  userId         String
+  campaignId     String?
+  amountMinor    Int
+  status         String   @default("granted")
+  idempotencyKey String   @unique
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([userId])
+}
+
+// ─── Exchange ───────────────────────────────────────────────
+
+model ExchangeAsset {
+  id          String   @id @default(cuid())
+  symbol      String   @unique
+  name        String
+  description String?
+  category    String?
+  assetType   String   @default("simulated")
+  status      String   @default("active") // active | halted | delisted
+  createdAt   DateTime @default(now())
+
+  prices   MarketPrice[]
+  orders   TradeOrder[]
+  holdings Holding[]
+}
+
+model MarketPrice {
+  id           String   @id @default(cuid())
+  assetId      String
+  priceMinor   Int
+  currencyCode String   @default("NGN")
+  effectiveAt  DateTime
+  modelVersion String?
+
+  asset ExchangeAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, effectiveAt])
+}
+
+model TradeOrder {
+  id             String   @id @default(cuid())
+  userId         String
+  assetId        String
+  side           String // buy | sell
+  quantity       Int
+  priceMinor     Int? // limit price; null = market
+  status         String   @default("filled") // pending | filled | cancelled | rejected
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+  filledAt       DateTime?
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset ExchangeAsset @relation(fields: [assetId], references: [id])
+  trade Trade?
+
+  @@index([userId])
+  @@index([assetId])
+}
+
+model Trade {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  priceMinor Int
+  quantity   Int
+  totalMinor Int
+  executedAt DateTime @default(now())
+
+  order TradeOrder @relation(fields: [orderId], references: [id])
+}
+
+model Holding {
+  id               String @id @default(cuid())
+  userId           String
+  assetId          String
+  quantityUnits    Int
+  averageCostMinor Int
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset ExchangeAsset @relation(fields: [assetId], references: [id])
+
+  @@unique([userId, assetId])
+}
+
+// ─── Commerce / Discover ────────────────────────────────────
+
+model Business {
+  id                 String   @id @default(cuid())
+  ownerUserId        String
+  name               String
+  description        String?
+  verificationStatus String   @default("pending") // pending | approved | rejected
+  createdAt          DateTime @default(now())
+
+  owner     User       @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  listings  Listing[]
+  campaigns Campaign[]
+
+  @@index([ownerUserId])
+}
+
+model Listing {
+  id          String    @id @default(cuid())
+  businessId  String?
+  listingType String // product | event
+  title       String
+  description String?
+  imageUrl    String?
+  location    String?
+  externalUrl String?
+  status      String    @default("draft") // draft | published | paused | archived
+  isSponsored Boolean   @default(false)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  business  Business?  @relation(fields: [businessId], references: [id])
+  bookmarks Bookmark[]
+  campaigns Campaign[]
+
+  @@index([status, listingType])
+  @@index([startsAt])
+}
+
+model Campaign {
+  id           String    @id @default(cuid())
+  businessId   String?
+  listingId    String?
+  title        String
+  description  String?
+  budgetMinor  Int       @default(0)
+  rewardPolicy String? // JSON string describing reward rules
+  status       String    @default("draft") // draft | active | paused | ended
+  startsAt     DateTime?
+  endsAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  business       Business?       @relation(fields: [businessId], references: [id])
+  listing        Listing?        @relation(fields: [listingId], references: [id])
+  events         CampaignEvent[]
+  rewardGrants   RewardGrant[]
+}
+
+model CampaignEvent {
+  id         String   @id @default(cuid())
+  campaignId String
+  userId     String
+  eventType  String // impression | click | join | complete
+  occurredAt DateTime @default(now())
+  metadata   String? // JSON
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, eventType])
+  @@index([userId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+}
+
+// ─── Community / governance ─────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetType String // listing | user | campaign
+  targetId   String
+  reason     String
+  status     String   @default("open") // open | reviewed | actioned | dismissed
+  createdAt  DateTime @default(now())
+
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   String? // JSON
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([createdAt])
+  @@index([action])
+}
+
+model IdempotencyKey {
+  id                String   @id @default(cuid())
+  actorId           String
+  key               String
+  requestHash       String?
+  responseReference String?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+
+  @@unique([actorId, key])
+  @@index([expiresAt])
+}
