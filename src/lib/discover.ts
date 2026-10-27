@@ -25,6 +25,17 @@ export async function listListings(opts?: {
     where,
     include: {
       business: { select: { name: true, verificationStatus: true } },
+      campaigns: {
+        where: {
+          status: "active",
+          AND: [
+            { OR: [{ startsAt: null }, { startsAt: { lte: new Date() } }] },
+            { OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }] },
+          ],
+        },
+        select: { id: true, title: true, description: true },
+        take: 3,
+      },
     },
     orderBy: [{ isSponsored: "desc" }, { createdAt: "desc" }],
     take: opts?.limit ?? 40,
@@ -91,15 +102,7 @@ export async function joinCampaign(userId: string, campaignId: string) {
     where: { id: campaignId, status: "active" },
   });
   if (!campaign) throw new Error("Campaign not available");
-
-  // Record join event (dedupe later via reward_grants idempotency)
-  await prisma.campaignEvent.create({
-    data: {
-      campaignId,
-      userId,
-      eventType: "join",
-    },
-  });
-
-  return { ok: true, campaignId };
+  const { recordCampaignEvent } = await import("./campaign-events");
+  const res = await recordCampaignEvent({ campaignId, userId, eventType: "join" });
+  return { ok: true, campaignId, alreadyJoined: !res.recorded };
 }

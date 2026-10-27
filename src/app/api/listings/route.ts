@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { createListing } from "@/lib/discover";
+import { isAdminUser } from "@/lib/admin";
 
 const schema = z.object({
   listingType: z.enum(["product", "event"]),
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
       imageUrl: data.imageUrl || undefined,
       location: data.location,
       externalUrl: data.externalUrl || undefined,
-      isSponsored: data.isSponsored,
+      // Only admins can mark a listing sponsored (businesses go through /business + admin review)
+      isSponsored: isAdminUser(user) ? data.isSponsored : false,
       publish: data.publish ?? true,
     });
     return NextResponse.json({ listing }, { status: 201 });

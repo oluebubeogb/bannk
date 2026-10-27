@@ -106,6 +106,23 @@ export default function ProfilePage() {
         Statements &amp; receipts
       </Link>
 
+      <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] divide-y divide-[var(--border)] mb-4">
+        <Link href="/community" className="px-4 py-3 flex justify-between text-sm">
+          <span className="font-medium">Community</span>
+          <span className="text-[var(--text-muted)]">Challenges &amp; groups →</span>
+        </Link>
+        <Link href="/business" className="px-4 py-3 flex justify-between text-sm">
+          <span className="font-medium">Business console</span>
+          <span className="text-[var(--text-muted)]">Promote on Bannk →</span>
+        </Link>
+        {data.isAdmin && (
+          <Link href="/admin" className="px-4 py-3 flex justify-between text-sm">
+            <span className="font-medium">Admin console</span>
+            <span className="text-[var(--text-muted)]">→</span>
+          </Link>
+        )}
+      </div>
+
       <button
         onClick={logout}
         className="w-full h-12 rounded-xl border border-[var(--border)] text-[var(--danger)] font-medium"

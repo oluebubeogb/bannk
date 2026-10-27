@@ -37,6 +37,9 @@ model User {
   notifications          Notification[]
   auditEvents            AuditEvent[]
   reports                Report[]
+  challengeCompletions   ChallengeCompletion[]
+  groupsCreated          CommunityGroup[]
+  groupMemberships       CommunityGroupMember[]
 }
 
 model Profile {
@@ -114,7 +117,7 @@ model LedgerAccount {
 
 model JournalTransaction {
   id             String   @id @default(cuid())
-  type           String   // transfer | allowance | reward | trade | adjustment | issuance
+  type           String // transfer | allowance | reward | trade | adjustment | issuance
   status         String   @default("posted") // pending | posted | reversed
   idempotencyKey String   @unique
   reference      String?
@@ -220,15 +223,15 @@ model MarketPrice {
 }
 
 model TradeOrder {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String
   assetId        String
   side           String // buy | sell
   quantity       Int
   priceMinor     Int? // limit price; null = market
-  status         String   @default("filled") // pending | filled | cancelled | rejected
-  idempotencyKey String   @unique
-  createdAt      DateTime @default(now())
+  status         String    @default("filled") // pending | filled | cancelled | rejected
+  idempotencyKey String    @unique
+  createdAt      DateTime  @default(now())
   filledAt       DateTime?
 
   user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -266,12 +269,16 @@ model Holding {
 // ─── Commerce / Discover ────────────────────────────────────
 
 model Business {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   ownerUserId        String
   name               String
   description        String?
-  verificationStatus String   @default("pending") // pending | approved | rejected
-  createdAt          DateTime @default(now())
+  verificationStatus String    @default("pending") // pending | approved | rejected
+  website            String?
+  contactEmail       String?
+  reviewNote         String?
+  reviewedAt         DateTime?
+  createdAt          DateTime  @default(now())
 
   owner     User       @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   listings  Listing[]
@@ -317,10 +324,11 @@ model Campaign {
   endsAt       DateTime?
   createdAt    DateTime  @default(now())
 
-  business       Business?       @relation(fields: [businessId], references: [id])
-  listing        Listing?        @relation(fields: [listingId], references: [id])
-  events         CampaignEvent[]
-  rewardGrants   RewardGrant[]
+  business     Business?       @relation(fields: [businessId], references: [id])
+  listing      Listing?        @relation(fields: [listingId], references: [id])
+  events       CampaignEvent[]
+  rewardGrants RewardGrant[]
+  challenges   Challenge[]
 }
 
 model CampaignEvent {
@@ -330,6 +338,7 @@ model CampaignEvent {
   eventType  String // impression | click | join | complete
   occurredAt DateTime @default(now())
   metadata   String? // JSON
+  dedupeKey  String?  @unique // e.g. impression:<campaign>:<user>:<yyyy-mm-dd>
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -352,14 +361,76 @@ model Bookmark {
 
 // ─── Community / governance ─────────────────────────────────
 
+model Challenge {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  kind        String    @default("community") // learning | community | sponsored
+  status      String    @default("draft") // draft | active | ended
+  rewardMinor Int       @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  campaignId  String?
+  createdAt   DateTime  @default(now())
+
+  campaign    Campaign?             @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  completions ChallengeCompletion[]
+
+  @@index([status])
+}
+
+model ChallengeCompletion {
+  id             String   @id @default(cuid())
+  challengeId    String
+  userId         String
+  status         String   @default("completed") // completed
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([userId])
+}
+
+model CommunityGroup {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  visibility      String   @default("public") // public | private
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  createdBy User                   @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  members   CommunityGroupMember[]
+
+  @@index([visibility])
+}
+
+model CommunityGroupMember {
+  id       String   @id @default(cuid())
+  groupId  String
+  userId   String
+  role     String   @default("member") // member | mod
+  joinedAt DateTime @default(now())
+
+  group CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   type      String
   title     String
   body      String?
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

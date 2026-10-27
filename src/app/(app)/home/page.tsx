@@ -107,6 +107,18 @@ export default function HomePage() {
         </p>
       </div>
 
+      {/* Community */}
+      <Link
+        href="/community"
+        className="flex items-center justify-between rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-6"
+      >
+        <div>
+          <p className="text-sm font-medium">Community</p>
+          <p className="text-xs text-[var(--text-muted)]">Challenges, groups &amp; leaderboards</p>
+        </div>
+        <span className="text-[var(--accent-ink)] text-sm font-medium">Open →</span>
+      </Link>
+
       <p className="text-xs text-center text-[var(--text-muted)]">
         All balances are simulated virtual credits.
       </p>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { ensureWallet, getWalletBalance } from "@/lib/ledger";
 import { getAllowanceStatus } from "@/lib/allowance";
+import { isAdminUser } from "@/lib/admin";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -23,5 +24,7 @@ export async function GET() {
     visibility: user.profile?.visibility,
     balanceMinor,
     allowance,
+    emailVerified: !!user.emailVerifiedAt,
+    isAdmin: isAdminUser(user),
   });
 }

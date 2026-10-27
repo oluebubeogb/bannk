@@ -411,3 +411,181 @@ export async function postTradeCash(params: {
     );
   }
 }
+
+/** Sum of an account's entries inside a transaction client (credit − debit). */
+async function accountBalanceTx(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  ledgerAccountId: string
+) {
+  const sums = await tx.journalEntry.groupBy({
+    by: ["direction"],
+    where: { ledgerAccountId },
+    _sum: { amountMinor: true },
+  });
+  let bal = 0;
+  for (const s of sums) {
+    const v = s._sum.amountMinor ?? 0;
+    bal += s.direction === "credit" ? v : -v;
+  }
+  return bal;
+}
+
+/**
+ * Admin manual balance adjustment — balanced journal against the issuance
+ * account + AuditEvent `admin.adjust_balance`, written in one DB transaction.
+ */
+export async function adminAdjustBalance(params: {
+  actorUserId: string;
+  targetUserId: string;
+  currencyCode: string;
+  amountMinor: number;
+  direction: "credit" | "debit";
+  reason: string;
+  idempotencyKey: string;
+}) {
+  const { actorUserId, targetUserId, currencyCode, amountMinor, direction, reason, idempotencyKey } =
+    params;
+  if (!Number.isInteger(amountMinor) || amountMinor <= 0) throw new Error("Amount must be a positive integer");
+  if (!reason || reason.trim().length < 3) throw new Error("A reason is required");
+
+  const { availableAccount } = await ensureWallet(targetUserId, currencyCode);
+  const issuance = await getOrCreateIssuanceAccount(currencyCode);
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.journalTransaction.findUnique({
+      where: { idempotencyKey },
+      include: { entries: true },
+    });
+    if (existing) return existing;
+
+    if (direction === "debit") {
+      const bal = await accountBalanceTx(tx, availableAccount.id);
+      if (bal < amountMinor) throw new Error("Insufficient balance for debit");
+    }
+
+    const entries =
+      direction === "credit"
+        ? [
+            { ledgerAccountId: issuance.id, amountMinor, direction: "debit" },
+            { ledgerAccountId: availableAccount.id, amountMinor, direction: "credit" },
+          ]
+        : [
+            { ledgerAccountId: availableAccount.id, amountMinor, direction: "debit" },
+            { ledgerAccountId: issuance.id, amountMinor, direction: "credit" },
+          ];
+
+    const journal = await tx.journalTransaction.create({
+      data: {
+        type: "adjustment",
+        status: "posted",
+        idempotencyKey,
+        reference: generateReference(),
+        note: `Adjustment: ${reason.trim()}`.slice(0, 200),
+        entries: { create: entries },
+      },
+      include: { entries: true },
+    });
+
+    await tx.auditEvent.create({
+      data: {
+        actorId: actorUserId,
+        action: "admin.adjust_balance",
+        targetType: "user",
+        targetId: targetUserId,
+        metadata: JSON.stringify({
+          direction,
+          amountMinor,
+          currencyCode,
+          reason: reason.trim(),
+          journalId: journal.id,
+          reference: journal.reference,
+        }),
+      },
+    });
+
+    return journal;
+  });
+}
+
+/**
+ * Challenge reward — creates ChallengeCompletion (unique per challenge+user),
+ * RewardGrant, balanced journal (issuance → user) and AuditEvent atomically.
+ * Returns { alreadyCompleted: true } on repeat calls.
+ */
+export async function completeChallengeWithReward(params: {
+  userId: string;
+  challengeId: string;
+  rewardMinor: number;
+  currencyCode: string;
+  campaignId?: string | null;
+  title: string;
+}) {
+  const { userId, challengeId, rewardMinor, currencyCode, campaignId, title } = params;
+  const key = `challenge:${challengeId}:${userId}`;
+
+  const { availableAccount } = await ensureWallet(userId, currencyCode);
+  const issuance = rewardMinor > 0 ? await getOrCreateIssuanceAccount(currencyCode) : null;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const existing = await tx.challengeCompletion.findUnique({
+        where: { challengeId_userId: { challengeId, userId } },
+      });
+      if (existing) return { alreadyCompleted: true, completion: existing, journal: null };
+
+      const completion = await tx.challengeCompletion.create({
+        data: { challengeId, userId, status: "completed", idempotencyKey: key },
+      });
+
+      let journal = null;
+      if (rewardMinor > 0 && issuance) {
+        journal = await tx.journalTransaction.create({
+          data: {
+            type: "reward",
+            status: "posted",
+            idempotencyKey: `reward:${key}`,
+            reference: generateReference(),
+            note: `Challenge reward: ${title}`.slice(0, 200),
+            entries: {
+              create: [
+                { ledgerAccountId: issuance.id, amountMinor: rewardMinor, direction: "debit" },
+                { ledgerAccountId: availableAccount.id, amountMinor: rewardMinor, direction: "credit" },
+              ],
+            },
+          },
+        });
+        await tx.rewardGrant.create({
+          data: {
+            userId,
+            campaignId: campaignId ?? null,
+            amountMinor: rewardMinor,
+            status: "granted",
+            idempotencyKey: `reward:${key}`,
+            reason: `challenge:${challengeId}`,
+          },
+        });
+      }
+
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          action: "community.challenge_complete",
+          targetType: "challenge",
+          targetId: challengeId,
+          metadata: JSON.stringify({ rewardMinor, currencyCode, journalId: journal?.id ?? null }),
+        },
+      });
+
+      return { alreadyCompleted: false, completion, journal };
+    });
+  } catch (err: any) {
+    // Concurrent double-submit hits the unique constraint → treat as already completed
+    if (err?.code === "P2002") {
+      const completion = await prisma.challengeCompletion.findUnique({
+        where: { challengeId_userId: { challengeId, userId } },
+      });
+      return { alreadyCompleted: true, completion, journal: null };
+    }
+    throw err;
+  }
+}

@@ -29,14 +29,18 @@ Virtual-only economy · Global-first PWA · African identity · Weekly allowance
 | Statements | Sleek **PDF** (primary) + CSV, any period up to 366 days, from Wallet |
 | Mail | WordKey + emailed PDF statements via SMTP or Resend |
 | Schedule | `POST /api/cron/allowance` (Coolify scheduled task) |
+| Community | `/community` — challenges with idempotent virtual-credit rewards, public groups (create/join/leave), real-data leaderboards |
+| Admin console | `/admin` — overview, users (search, suspend, audited balance adjustments), business review, listings, campaigns, challenges, reports, audit log. Access via `ADMIN_USERNAMES` only |
+| Business console | `/business` — any verified member submits a business → admin approves → owner drafts listings/campaigns → admin publishes; campaign metrics |
+| Moderation | Report a listing/user/campaign (`POST /api/reports`), reviewed in `/admin/reports` |
 | Theme | Light fintech UI (warm neutrals, charcoal ink, lime accent) |
 
-**Postponed (Phase C — not in this build):** Community tab, Admin console, Business console, Redis-backed queues/rate limits, real-money rails, self-service ad marketplace, chat, microservices.
+**Not in this build:** Redis-backed queues/rate limits, real-money rails, self-service ad billing, subdomains, chat, microservices.
 
 ## Prerequisites
 
 - Node 20+
-- PostgreSQL 14+ (local: `docker compose up -d postgres`)
+- PostgreSQL 14+ (local: `docker compose -f docker-compose.dev.yml up -d postgres`)
 
 ## Local development
 
@@ -54,7 +58,8 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
 ## Deploy on Coolify
 
 1. **Postgres** — New Resource → Database → PostgreSQL 16. Copy its *internal* connection URL.
-2. **App** — New Resource → Public/Private Git repo (or upload) → Build Pack **Dockerfile** (repo root). Port **3000**.
+2. **App** — New Resource → Application (not Docker Compose) → upload/`git` → Build Pack **Dockerfile** (repo root has `Dockerfile`). Port **3000**.
+   - If Coolify only shows `POSTGRES_*` vars, you opened a **Compose** resource (or an old zip that shipped `docker-compose.yml`). Delete/ignore that resource and create a fresh **Application** with Build Pack Dockerfile. App secrets (`DATABASE_URL`, `SESSION_SECRET`, …) are added manually under Environment — they are not auto-imported from `.env.example`.
 3. **Environment variables** (Coolify → app → Environment):
 
 | Variable | Required | Example / notes |
@@ -71,6 +76,7 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
 | `MAIL_FROM` | yes | `Bannk <no-reply@yourdomain.com>` (must be a verified sender) |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | if smtp | 587 + `SMTP_SECURE=false` (STARTTLS) or 465 + `true` |
 | `RESEND_API_KEY` | if resend | `re_…` |
+| `ADMIN_USERNAMES` | for admin | Comma-separated usernames, e.g. `amara,tunde,admin1` — trimmed, case-insensitive, `@` optional. Only these accounts can open `/admin` and `/api/admin/*`. Empty/unset = nobody. Redeploy/restart after changing |
 
 4. **Deploy.** The container entrypoint runs `prisma migrate deploy` then `next start` on `0.0.0.0:3000`. The image runs as the non-root `node` user.
 5. **Health check** — `GET /api/health` → `{"status":"ok","db":"ok","mail":"smtp"}` (503 if the DB is unreachable). The Dockerfile also declares a `HEALTHCHECK`; in Coolify set the health check path to `/api/health`.
@@ -83,7 +89,7 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
    Response: `{"ok":true,"scanned":N,"granted":M,"errors":[]}`. Users still also receive a due grant on login.
 7. Point your domain at the app; HTTPS via Coolify's proxy. (If you see intermittent `ChunkLoadError` / `ERR_QUIC_PROTOCOL_ERROR`, disable HTTP/3 on the proxy.)
 
-**Redis is optional and unused in v1** — `docker-compose.yml` keeps it for local experiments only; no env var is required.
+**Redis is optional and unused in v1** — `docker-compose.dev.yml` is local-only (Postgres/Redis helpers). Do **not** deploy that Compose file on Coolify; use Build Pack **Dockerfile** so the app env vars from `.env.example` appear in Coolify → Environment.
 
 ## Allowance rules
 
@@ -105,6 +111,45 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
 PDF contents: Bannk header, period, holder/username/email/currency, opening · money in · money out · closing cards, transaction table (date/time, description + counterparty + note, reference, signed amount, running balance), virtual-credits disclaimer + page numbers on every page. Fonts: Inter (OFL) embedded from `assets/fonts/` so ₦ renders.
 
 CSV columns: `date,type,ref,counterparty,note,amount,balance_after,currency` with opening/closing rows.
+
+## Community, Admin & Business
+
+### Admin access — `ADMIN_USERNAMES` only
+
+Admin rights come **only** from the `ADMIN_USERNAMES` environment variable (comma-separated Bannk usernames). There is no role column in the database and no staff badge anywhere in the UI. Admins use the app like everyone else; an "Admin console" link appears on their own Profile page only.
+
+- Signed-out visitors to `/admin/*` are redirected to `/login?next=/admin/...`.
+- Signed-in non-admins get a **403** page; `/api/admin/*` returns `401`/`403` JSON.
+- Every admin write is recorded in `AuditEvent` (`admin.*`).
+- Helper: `src/lib/admin.ts` → `parseAdminUsernames()`, `isAdminUsername()`, `requireAdmin(session)`.
+
+### Flows
+
+| Flow | How it works |
+|---|---|
+| Challenge reward | `POST /api/community/challenges/[id]/complete` → one DB transaction: `ChallengeCompletion` + ledger journal from the issuance account + `RewardGrant` + `AuditEvent`. Unique `(challengeId,userId)` makes it pay **once**; repeat calls return `alreadyCompleted` |
+| Balance adjustment | `/admin/users/[id]` → credit/debit with mandatory reason → balanced `adjustment` journal + `AuditEvent admin.adjust_balance` (idempotency key per submit; debits can't overdraw) |
+| Business onboarding | `/business` submit (pending) → `/admin/businesses` approve/reject with reason (owner notified; rejecting pauses live items) → owner creates **draft** listings/campaigns → admin publishes/activates. Owners can pause/archive their own items |
+| Campaign tracking | Discover records `impression`/`click` (once per user per campaign per UTC day) and `join` (once) via `POST /api/campaigns/[id]/events`; challenge completions add `complete`. Metrics shown in both consoles |
+
+### Routes
+
+| Route | Purpose |
+|---|---|
+| `GET /api/community/challenges` · `POST /api/community/challenges/[id]/complete` | Active challenges · complete + reward |
+| `GET/POST /api/community/groups` · `POST/DELETE /api/community/groups/[id]/membership` · `GET …/members` | Groups |
+| `GET /api/community/leaderboard` | Wallet / portfolio / challenge leaderboards (public profiles only) |
+| `POST /api/campaigns/[id]/events` | `{eventType: impression\|click\|join}` |
+| `POST /api/reports` | `{targetType: listing\|user\|campaign, targetId, reason}` (one open report per target; 10/hour) |
+| `GET/POST /api/business` · `POST /api/business/listings` · `PATCH /api/business/listings/[id]` · `POST /api/business/campaigns` · `PATCH /api/business/campaigns/[id]` | Owner-scoped business console |
+| `GET /api/admin/overview` | Counts + recent audit |
+| `GET /api/admin/users` · `GET /api/admin/users/[id]` · `POST …/status` · `POST …/adjust` | Users |
+| `GET /api/admin/businesses` · `POST /api/admin/businesses/[id]/review` | Business review |
+| `GET /api/admin/listings` · `PATCH /api/admin/listings/[id]` | Publish / pause / archive / sponsor |
+| `GET/POST /api/admin/campaigns` · `PATCH /api/admin/campaigns/[id]` | Campaigns |
+| `GET/POST /api/admin/challenges` · `PATCH /api/admin/challenges/[id]` | Challenges |
+| `GET /api/admin/reports` · `PATCH /api/admin/reports/[id]` | Reports |
+| `GET /api/admin/audit` | Audit log |
 
 ## API additions
 
@@ -132,11 +177,13 @@ CSV columns: `date,type,ref,counterparty,note,amount,balance_after,currency` wit
 ```
 src/
   app/
-    (app)/            # Home, Wallet (+ statements), Send, Receipt, Exchange, Discover, Profile
-    api/              # auth (+resend), me, wallets, transfers (+[id]), statements (+email), cron, health, …
+    (app)/            # Home, Wallet (+ statements), Send, Receipt, Exchange, Discover, Community, Profile
+    admin/            # Admin console (ADMIN_USERNAMES only)
+    business/         # Business console (verified members)
+    api/              # auth, me, wallets, transfers, statements, cron, health, community, campaigns, reports, business, admin, …
     u/[username]      # public profile
     login|register|verify
-  components/         # BottomNav, StatementPanel
+  components/         # BottomNav, StatementPanel, ui (console kit), MetricsRow
   lib/
     auth.ts           # WordKey, sessions, passwords
     ledger.ts         # double-entry, transfers, references (BNK-YYYYMMDD-XXXXXXXX)
@@ -144,17 +191,16 @@ src/
     receipts.ts       # receipt lookup + party check
     statements.ts     # statement data, CSV, PDF (pdfkit)
     mail.ts           # SMTP / Resend / console
+    admin.ts          # ADMIN_USERNAMES parsing + requireAdmin / withAdmin guards
+    community.ts · business.ts · campaign-events.ts · api.ts · guards.ts
     exchange.ts · discover.ts · qr.ts · money.ts
 prisma/
   schema.prisma
-  migrations/20261027000000_init/   # initial migration (prisma migrate deploy)
+  migrations/20261027000000_init/                       # initial migration
+  migrations/20261027220000_community_admin_business/   # challenges, groups, business review fields
 assets/fonts/         # Inter for PDFs
 Dockerfile · docker-entrypoint.sh · .dockerignore
 docs/PRODUCT_SPEC.md
 ```
-
-## Phase C — postponed
-
-Community tab, Admin console, Business console, sponsorship self-serve, Redis-backed queues & rate limiting, real-money rails. Not included in this build.
 
 All balances are **simulated virtual credits**. Bannk does not accept real deposits or process real money.
