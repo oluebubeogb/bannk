@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeftRight, LineChart, Plus, TrendingUp, TrendingDown, PieChart } from "lucide-react";
+import { IconCircle } from "@/components/kit";
+import { ReceivePanel } from "@/components/ReceivePanel";
 
 function fmt(minor: number, currency = "NGN") {
   const v = minor / 100;
@@ -24,7 +27,7 @@ export default function ExchangePage() {
   const [loading, setLoading] = useState(true);
   const [trading, setTrading] = useState(false);
 
-  // Bootstrap form for first assets (no seed)
+  // Asset listing form
   const [boot, setBoot] = useState({ symbol: "", name: "", price: "" });
   const [showBoot, setShowBoot] = useState(false);
 
@@ -119,14 +122,22 @@ export default function ExchangePage() {
 
   return (
     <div className="px-5 pt-8 pb-6">
-      <h1 className="text-xl font-bold mb-1">Exchange</h1>
-      <p className="text-xs text-[var(--text-muted)] mb-5">
-        Simulated market · not real securities
-      </p>
+      <div className="flex items-center gap-3 mb-5">
+        <IconCircle icon={ArrowLeftRight} tone="peach" size={40} />
+        <div>
+          <h1 className="text-xl font-bold leading-tight">Exchange</h1>
+          <p className="text-xs text-[var(--text-muted)]">Receive payments and trade listed assets</p>
+        </div>
+      </div>
+
+      <ReceivePanel />
 
       {portfolio && portfolio.holdings?.length > 0 && (
         <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-4 mb-5">
-          <p className="text-sm text-[var(--text-muted)] mb-1">Portfolio value</p>
+          <div className="flex items-center gap-2 mb-1">
+            <IconCircle icon={PieChart} tone="lilac" size={28} />
+            <p className="text-sm text-[var(--text-muted)]">Portfolio value</p>
+          </div>
           <p className="text-xl font-bold tabular">
             {fmt(portfolio.summary.totalMarketMinor)}
           </p>
@@ -137,6 +148,7 @@ export default function ExchangePage() {
                 : "text-[var(--danger)]"
             }`}
           >
+            {portfolio.summary.totalPnlMinor >= 0 ? <TrendingUp size={14} className="inline mr-1" /> : <TrendingDown size={14} className="inline mr-1" />}
             {portfolio.summary.totalPnlMinor >= 0 ? "+" : ""}
             {fmt(portfolio.summary.totalPnlMinor)} unrealized
           </p>
@@ -148,12 +160,9 @@ export default function ExchangePage() {
           onSubmit={createAsset}
           className="rounded-2xl border border-dashed border-[var(--border)] p-4 mb-5 space-y-3"
         >
-          <p className="text-sm font-medium">Add a simulated asset</p>
-          <p className="text-xs text-[var(--text-muted)]">
-            No seed data — create the first assets yourself.
-          </p>
+          <p className="text-sm font-medium">List an asset</p>
           <input
-            placeholder="Symbol (e.g. AFRI)"
+            placeholder="Symbol (e.g. LAGOS)"
             value={boot.symbol}
             onChange={(e) => setBoot({ ...boot, symbol: e.target.value })}
             className="w-full h-11 px-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]"
@@ -185,9 +194,9 @@ export default function ExchangePage() {
       {!showBoot && (
         <button
           onClick={() => setShowBoot(true)}
-          className="text-xs text-[var(--accent-ink)] mb-4"
+          className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-ink)] mb-4"
         >
-          + Add asset
+          <Plus size={14} /> Add asset
         </button>
       )}
 
@@ -200,13 +209,14 @@ export default function ExchangePage() {
               setErr("");
               setMsg("");
             }}
-            className={`w-full text-left rounded-xl border px-4 py-3 flex justify-between items-center ${
+            className={`tile w-full text-left rounded-2xl border px-4 py-3 flex gap-3 items-center shadow-[var(--shadow)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] ${
               selected?.id === a.id
-                ? "border-[var(--accent)] bg-[var(--surface)]"
+                ? "border-[var(--accent-ink)] bg-[var(--surface)]"
                 : "border-[var(--border)] bg-[var(--surface)]"
             }`}
           >
-            <div>
+            <IconCircle icon={LineChart} tone="sun" size={36} />
+            <div className="flex-1">
               <p className="font-semibold">{a.symbol}</p>
               <p className="text-xs text-[var(--text-muted)]">{a.name}</p>
             </div>

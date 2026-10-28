@@ -1,6 +1,6 @@
 /**
  * Bannk double-entry ledger
- * All virtual money movements go through this module.
+ * All money movements go through this module.
  * Never update balances outside of a balanced journal transaction.
  * Clean start — creates system issuance account on first use (no seed required).
  */
@@ -16,6 +16,19 @@ export function generateReference(now = new Date()) {
   for (const b of bytes) code += alphabet[b % alphabet.length];
   const d = now.toISOString().slice(0, 10).replace(/-/g, "");
   return `BNK-${d}-${code}`;
+}
+
+/**
+ * Fire-and-forget credit/debit alert emails for a freshly posted journal.
+ * Never throws and never blocks or rolls back the ledger write.
+ */
+export function queueJournalAlerts(journalId: string | null | undefined) {
+  if (!journalId) return;
+  setTimeout(() => {
+    import("./alerts")
+      .then((m) => m.sendJournalAlerts(journalId))
+      .catch((err) => console.error("[bannk] alert mail failed:", err?.message || err));
+  }, 0);
 }
 
 export type JournalType =
@@ -65,7 +78,7 @@ export async function postJournal(
   });
   if (existing) return existing;
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     return tx.journalTransaction.create({
       data: {
         type,
@@ -84,6 +97,8 @@ export async function postJournal(
       include: { entries: true },
     });
   });
+  queueJournalAlerts(created.id);
+  return created;
 }
 
 export async function getWalletBalance(walletId: string): Promise<number> {
@@ -225,8 +240,10 @@ export async function executeTransfer(params: {
   amountMinor: number;
   note?: string;
   idempotencyKey: string;
+  /** When paying an invoice / payment request, its id — marked paid atomically. */
+  paymentRequestId?: string;
 }) {
-  const { senderUserId, recipientUsername, currencyCode, amountMinor, note, idempotencyKey } =
+  const { senderUserId, recipientUsername, currencyCode, amountMinor, note, idempotencyKey, paymentRequestId } =
     params;
 
   if (amountMinor <= 0) throw new Error("Transfer amount must be positive");
@@ -258,7 +275,8 @@ export async function executeTransfer(params: {
     throw new Error("Weekly allowance limit exceeded");
   }
 
-  return prisma.$transaction(async (tx) => {
+  let createdId: string | null = null;
+  const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.journalTransaction.findUnique({
       where: { idempotencyKey },
       include: { entries: true, transfer: true },
@@ -317,8 +335,27 @@ export async function executeTransfer(params: {
       data: { usedMinor: { increment: amountMinor } },
     });
 
+    if (paymentRequestId) {
+      const now = new Date();
+      const marked = await tx.paymentRequest.updateMany({
+        where: {
+          id: paymentRequestId,
+          status: "open",
+          payeeUserId: recipientProfile.userId,
+          amountMinor,
+          currency: currencyCode,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        data: { status: "paid", paidByUserId: senderUserId, transactionId: journal.id, paidAt: now },
+      });
+      if (marked.count !== 1) throw new Error("This payment request is no longer open");
+    }
+
+    createdId = journal.id;
     return journal;
   });
+  queueJournalAlerts(createdId);
+  return result;
 }
 
 export async function getTransactionHistory(userId: string, limit = 50) {
@@ -451,7 +488,8 @@ export async function adminAdjustBalance(params: {
   const { availableAccount } = await ensureWallet(targetUserId, currencyCode);
   const issuance = await getOrCreateIssuanceAccount(currencyCode);
 
-  return prisma.$transaction(async (tx) => {
+  let createdId: string | null = null;
+  const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.journalTransaction.findUnique({
       where: { idempotencyKey },
       include: { entries: true },
@@ -503,8 +541,11 @@ export async function adminAdjustBalance(params: {
       },
     });
 
+    createdId = journal.id;
     return journal;
   });
+  queueJournalAlerts(createdId);
+  return result;
 }
 
 /**
@@ -527,7 +568,7 @@ export async function completeChallengeWithReward(params: {
   const issuance = rewardMinor > 0 ? await getOrCreateIssuanceAccount(currencyCode) : null;
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.challengeCompletion.findUnique({
         where: { challengeId_userId: { challengeId, userId } },
       });
@@ -578,6 +619,8 @@ export async function completeChallengeWithReward(params: {
 
       return { alreadyCompleted: false, completion, journal };
     });
+    if (!result.alreadyCompleted) queueJournalAlerts(result.journal?.id);
+    return result;
   } catch (err: any) {
     // Concurrent double-submit hits the unique constraint → treat as already completed
     if (err?.code === "P2002") {

@@ -1,5 +1,5 @@
 /**
- * Bannk simulated stock exchange
+ * Bannk exchange (listed assets)
  * Game economy only — deterministic price model, separate from wallet ledger cash leg.
  */
 
@@ -198,7 +198,7 @@ export async function executeTrade(params: {
 }
 
 /**
- * Admin/helper: create a simulated asset with an initial price.
+ * Admin/helper: create a listed asset with an initial price.
  * Used by API when an admin adds assets (or first-time setup via API).
  */
 export async function createAsset(params: {

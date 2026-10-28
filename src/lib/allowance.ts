@@ -7,7 +7,7 @@ import { prisma } from "./prisma";
 import { grantAllowance, ensureWallet } from "./ledger";
 
 const PERIOD_DAYS = Number(process.env.ALLOWANCE_PERIOD_DAYS || 7);
-const WEEKLY_MINOR = Number(process.env.WEEKLY_ALLOWANCE_MINOR || 250000);
+const WEEKLY_MINOR = Number(process.env.WEEKLY_ALLOWANCE_MINOR || 25000000);
 /** Opening balance: ₦1,000,050.00 = 100005000 kobo (2 decimal minor units). */
 export const DEFAULT_INITIAL_ALLOWANCE_MINOR = 100005000;
 const INITIAL_MINOR = Number(process.env.INITIAL_ALLOWANCE_MINOR || DEFAULT_INITIAL_ALLOWANCE_MINOR);

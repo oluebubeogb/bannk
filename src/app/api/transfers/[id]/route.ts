@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getReceiptForUser } from "@/lib/receipts";
 import { appUrl } from "@/lib/mail";
+import { receiptText } from "@/lib/receiptRender";
 
 export const dynamic = "force-dynamic";
 
@@ -20,5 +21,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({
     receipt: result.receipt,
     shareUrl: appUrl(`/receipt/${result.receipt.id}`),
+    shareText: receiptText(result.receipt),
   });
 }

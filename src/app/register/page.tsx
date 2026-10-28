@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { Logo, PasswordInput } from "@/components/kit";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
@@ -69,12 +71,15 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-dvh flex flex-col px-5 pt-10 pb-8 safe-top safe-bottom max-w-md mx-auto">
-      <Link href="/" className="text-sm text-[var(--text-muted)] mb-8">
-        ← Back
-      </Link>
+      <div className="flex items-center justify-between mb-8">
+        <Link href="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
+          <ArrowLeft size={16} /> Back
+        </Link>
+        <Logo size={30} />
+      </div>
       <h1 className="text-2xl font-bold mb-1">Create account</h1>
       <p className="text-[var(--text-muted)] text-sm mb-8">
-        Join the virtual economy. No real money involved.
+        Send and receive money with just a @username.
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4 flex-1">
@@ -104,9 +109,9 @@ export default function RegisterPage() {
         </div>
         <div>
           <label className="block text-sm text-[var(--text-muted)] mb-1.5">Password</label>
-          <input
+          <PasswordInput
             required
-            type="password"
+            autoComplete="new-password"
             minLength={8}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}

@@ -2,6 +2,7 @@
  * Account statements — data, CSV, and PDF.
  */
 import path from "path";
+import { logoMarkPng } from "./brand";
 import fs from "fs";
 import { prisma } from "./prisma";
 import { formatMoney } from "./money";
@@ -331,10 +332,21 @@ export async function statementToPdf(s: Statement): Promise<Buffer> {
   const W = R - L;
 
   // Header: brand
-  doc.roundedRect(L, 44, 26, 26, 7).fill(C.lime);
-  doc.fillColor(C.ink).font(F.bold).fontSize(15).text("B", L, 49, { width: 26, align: "center" });
-  doc.font(F.bold).fontSize(17).fillColor(C.ink).text("Bannk", L + 34, 47);
-  doc.font(F.regular).fontSize(9).fillColor(C.muted).text("Banking without borders", L + 34, 66);
+  // Soft lime wash across the top of the first page
+  const wash = doc.linearGradient(0, 0, doc.page.width, 0);
+  wash.stop(0, "#f1fbd2").stop(0.55, "#fbf7ea").stop(1, "#fff0e4");
+  doc.rect(0, 0, doc.page.width, 30).fill(wash);
+  const mark = logoMarkPng();
+  if (mark) {
+    doc.save();
+    doc.roundedRect(L, 42, 28, 28, 8).clip();
+    doc.image(mark, L, 42, { width: 28, height: 28 });
+    doc.restore();
+  } else {
+    doc.roundedRect(L, 42, 28, 28, 8).fill(C.lime);
+  }
+  doc.font(F.bold).fontSize(17).fillColor(C.ink).text("bannk", L + 36, 45);
+  doc.font(F.regular).fontSize(9).fillColor(C.muted).text("Banking without borders", L + 36, 64);
 
   doc.font(F.semibold).fontSize(9).fillColor(C.muted).text("ACCOUNT STATEMENT", L, 48, { width: W, align: "right", characterSpacing: 0.8 });
   doc.font(F.semibold).fontSize(12).fillColor(C.ink).text(periodLabel(s.from, s.to), L, 62, { width: W, align: "right", lineBreak: false });
@@ -472,7 +484,7 @@ export async function statementToPdf(s: Statement): Promise<Buffer> {
     doc.page.margins.bottom = 0;
     doc.moveTo(L, fy - 8).lineTo(R, fy - 8).lineWidth(0.5).strokeColor(C.line).stroke();
     doc.font(F.regular).fontSize(7.5).fillColor(C.muted).text(
-      "Bannk is a virtual economy. Balances are virtual credits with no cash value; they cannot be withdrawn, exchanged for real money, or used outside Bannk.",
+      "Issued by Bannk for the account holder named above. This statement is confidential; please review it and report any discrepancy promptly.",
       L, fy, { width: W - 70, lineBreak: true }
     );
     doc.text(`Page ${i - range.start + 1} of ${range.count}`, R - 70, fy, { width: 70, align: "right" });

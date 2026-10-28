@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Trophy, UsersRound, Medal, Sprout } from "lucide-react";
+import { IconCircle } from "@/components/kit";
 import { Badge, Button, Card, Empty, Field, Notice, Skeleton, api, fmt, fmtDate, inputCls, textareaCls, useApi } from "@/components/ui";
 
 type Tab = "challenges" | "groups" | "leaderboard";
@@ -23,18 +25,24 @@ export default function CommunityPage() {
           Community
         </span>
       </div>
-      <h1 className="text-xl font-bold mt-2 mb-1">Grow together</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-5">Challenges, groups and leaderboards — all with virtual credits.</p>
+      <div className="flex items-center gap-3 mt-2 mb-5">
+        <IconCircle icon={Sprout} tone="mint" size={40} />
+        <div>
+          <h1 className="text-xl font-bold leading-tight">Grow together</h1>
+          <p className="text-sm text-[var(--text-muted)]">Challenges, groups and leaderboards.</p>
+        </div>
+      </div>
 
       <div className="flex p-1 rounded-xl bg-[var(--surface-2)] mb-5">
         {(["challenges", "groups", "leaderboard"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 h-9 rounded-lg text-sm font-medium capitalize transition ${
+            className={`flex-1 h-9 rounded-lg text-sm font-medium capitalize transition inline-flex items-center justify-center gap-1.5 ${
               tab === t ? "bg-[var(--surface)] shadow-sm" : "text-[var(--text-muted)]"
             }`}
           >
+            {t === "challenges" ? <Trophy size={14} /> : t === "groups" ? <UsersRound size={14} /> : <Medal size={14} />}
             {t}
           </button>
         ))}
@@ -87,7 +95,8 @@ function Challenges({ currency }: { currency: string }) {
       {data?.challenges.map((c: any) => (
         <Card key={c.id} className="p-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <IconCircle icon={Trophy} tone="sun" size={36} />
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <Badge tone="draft">{c.kind}</Badge>
                 {c.sponsor && <span className="text-[11px] text-[var(--text-muted)]">by {c.sponsor}</span>}
@@ -202,7 +211,8 @@ function Groups() {
         data?.groups.map((g: any) => (
           <Card key={g.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
-              <button className="min-w-0 text-left" onClick={() => setOpenGroup(openGroup === g.id ? null : g.id)}>
+              <IconCircle icon={UsersRound} tone="sky" size={36} />
+              <button className="min-w-0 flex-1 text-left" onClick={() => setOpenGroup(openGroup === g.id ? null : g.id)}>
                 <div className="flex items-center gap-2">
                   <p className="font-semibold">{g.name}</p>
                   {g.visibility === "private" && <Badge tone="draft">private</Badge>}

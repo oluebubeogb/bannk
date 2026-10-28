@@ -26,5 +26,7 @@ export async function GET() {
     allowance,
     emailVerified: !!user.emailVerifiedAt,
     isAdmin: isAdminUser(user),
+    hasPin: !!user.pinHash,
+    pinSetAt: user.pinSetAt,
   });
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { FileText, FileSpreadsheet, Mail, ScrollText, Loader2 } from "lucide-react";
+import { IconCircle } from "./kit";
 
 function iso(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -93,7 +95,10 @@ export function StatementPanel() {
   return (
     <section id="statement" className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-6 scroll-mt-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold">Statement</h2>
+        <div className="flex items-center gap-2.5">
+          <IconCircle icon={ScrollText} tone="sky" size={30} />
+          <h2 className="text-sm font-semibold">Statement</h2>
+        </div>
         <span className="text-xs text-[var(--text-muted)] tabular">
           {range.from} → {range.to}
         </span>
@@ -131,32 +136,35 @@ export function StatementPanel() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => download("pdf")}
-          disabled={!!busy}
-          className="h-11 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] text-sm font-semibold disabled:opacity-60"
-        >
-          {busy === "pdf" ? "Preparing…" : "Download PDF"}
-        </button>
-        <button
-          type="button"
-          onClick={email}
-          disabled={!!busy}
-          className="h-11 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm font-medium disabled:opacity-60"
-        >
-          {busy === "email" ? "Sending…" : "Email me this statement"}
-        </button>
+      {/* Period pickers above; all three actions on one compact row. */}
+      <div className="grid grid-cols-3 gap-2">
+        {(
+          [
+            { key: "pdf", label: "PDF", icon: FileText, onClick: () => download("pdf"), primary: true },
+            { key: "csv", label: "CSV", icon: FileSpreadsheet, onClick: () => download("csv") },
+            { key: "email", label: "Email", icon: Mail, onClick: email },
+          ] as const
+        ).map((b) => {
+          const Icon = busy === b.key ? Loader2 : b.icon;
+          return (
+            <button
+              key={b.key}
+              type="button"
+              onClick={b.onClick}
+              disabled={!!busy}
+              aria-label={b.key === "email" ? "Email me this statement" : `Download ${b.label}`}
+              className={`press h-11 rounded-xl inline-flex items-center justify-center gap-1.5 text-sm font-semibold transition disabled:opacity-60 ${
+                "primary" in b && b.primary
+                  ? "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-dim)]"
+                  : "border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-2)]"
+              }`}
+            >
+              <Icon size={16} className={busy === b.key ? "animate-spin" : ""} />
+              {b.label}
+            </button>
+          );
+        })}
       </div>
-      <button
-        type="button"
-        onClick={() => download("csv")}
-        disabled={!!busy}
-        className="mt-2 w-full h-9 text-xs text-[var(--text-muted)] underline-offset-2 hover:underline disabled:opacity-60"
-      >
-        {busy === "csv" ? "Preparing CSV…" : "Download as CSV instead"}
-      </button>
 
       {msg && (
         <p className={`mt-2 text-sm ${msg.kind === "ok" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{msg.text}</p>

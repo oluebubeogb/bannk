@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Compass, Plus, X, Search, CalendarDays, ShoppingBag, Megaphone } from "lucide-react";
+import { IconCircle } from "@/components/kit";
 
 export default function DiscoverPage() {
   const router = useRouter();
@@ -58,28 +60,35 @@ export default function DiscoverPage() {
   return (
     <div className="px-5 pt-8 pb-6">
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Discover</h1>
+        <div className="flex items-center gap-3">
+          <IconCircle icon={Compass} tone="lilac" size={40} />
+          <div>
+          <h1 className="text-xl font-bold leading-tight">Discover</h1>
           <p className="text-xs text-[var(--text-muted)]">
             Products, events & sponsored ·{" "}
             <Link href="/community" className="text-[var(--accent-ink)]">Community</Link>
           </p>
+          </div>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="text-sm text-[var(--accent-ink)] font-medium"
+          className="press inline-flex items-center gap-1 h-9 px-3 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-sm text-sm text-[var(--accent-ink)] font-medium hover:bg-[var(--surface-2)]"
         >
-          {showCreate ? "Cancel" : "+ Add"}
+          {showCreate ? <X size={15} /> : <Plus size={15} />}
+          {showCreate ? "Cancel" : "Add"}
         </button>
       </div>
 
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && load(q)}
-        placeholder="Search…"
-        className="w-full h-11 px-4 mb-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-sm"
-      />
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load(q)}
+          placeholder="Search…"
+          className="w-full h-11 pl-10 pr-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-sm shadow-[var(--shadow)]"
+        />
+      </div>
 
       {showCreate && (
         <form
@@ -196,7 +205,14 @@ function ListingCard({ l }: { l: any }) {
   return (
     <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-4">
       <div className="flex items-start justify-between gap-2 mb-1">
-        <h3 className="font-semibold leading-snug">{l.title}</h3>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <IconCircle
+            icon={campaigns.length > 0 || l.isSponsored ? Megaphone : l.listingType === "event" ? CalendarDays : ShoppingBag}
+            tone={campaigns.length > 0 || l.isSponsored ? "sun" : l.listingType === "event" ? "sky" : "peach"}
+            size={34}
+          />
+          <h3 className="font-semibold leading-snug">{l.title}</h3>
+        </div>
         {(l.isSponsored || campaigns.length > 0) && (
           <span className="shrink-0 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent-ink)]">
             Sponsored

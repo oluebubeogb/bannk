@@ -1,5 +1,5 @@
 /**
- * Bannk mail helper — WordKey + statements.
+ * Bannk mail helper — WordKey, password reset, statements, credit/debit alerts.
  *
  * MAIL_PROVIDER = smtp | resend | console (default: auto-detect)
  *   smtp   → SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE
@@ -117,7 +117,7 @@ export async function sendMail(msg: MailMessage): Promise<{ provider: MailProvid
   return { provider };
 }
 
-function esc(s: string) {
+export function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
@@ -126,15 +126,16 @@ export function appUrl(path = "") {
   return base + path;
 }
 
-function layout(title: string, inner: string) {
-  return `<!doctype html><html><body style="margin:0;background:#f6f5f1;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#16181d">
-<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px"><tr><td align="center">
-<table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border:1px solid #e3e1d9;border-radius:16px;padding:28px">
+export function layout(title: string, inner: string) {
+  const logo = appUrl("/brand/logo-mark.png");
+  return `<!doctype html><html><body style="margin:0;background:#f6f5f1;font-family:Inter,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#16181d">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px;background:linear-gradient(135deg,#f1fbd2,#fbf7ea 55%,#fff0e4)"><tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border:1px solid #e7e5dd;border-radius:20px;padding:28px;box-shadow:0 8px 28px rgba(22,24,29,.06)">
 <tr><td>
-<div style="font-weight:700;font-size:20px;margin-bottom:20px"><span style="display:inline-block;background:#c2ea3f;border-radius:8px;width:28px;height:28px;text-align:center;line-height:28px;margin-right:8px">B</span>Bannk</div>
+<div style="font-weight:700;font-size:20px;margin-bottom:22px;letter-spacing:-.3px"><img src="${esc(logo)}" width="30" height="30" alt="" style="vertical-align:middle;border-radius:9px;margin-right:8px;background:#c5f63a"/>bannk</div>
 <h1 style="font-size:18px;margin:0 0 12px">${esc(title)}</h1>
 ${inner}
-<p style="font-size:12px;color:#6b6f78;margin-top:28px">Bannk uses virtual credits only. Credits have no cash value and cannot be withdrawn.</p>
+<p style="font-size:12px;color:#6b6f78;margin-top:28px;border-top:1px solid #efede6;padding-top:14px">Bannk will never ask for your password, PIN or WordKey. If this wasn't you, reset your password and contact support.</p>
 </td></tr></table></td></tr></table></body></html>`;
 }
 
@@ -172,11 +173,80 @@ export async function sendStatementMail(params: {
   return sendMail({
     to: params.to,
     subject: `Your Bannk statement · ${params.periodLabel}`,
-    text: `Hi @${params.username},\n\nYour Bannk account statement for ${params.periodLabel} is attached (PDF).\n\nBannk uses virtual credits only.`,
+    text: `Hi @${params.username},\n\nYour Bannk account statement for ${params.periodLabel} is attached (PDF).\n\n— Bannk`,
     html: layout(
       "Your account statement",
       `<p style="font-size:14px;line-height:1.5">Hi @${esc(params.username)}, your statement for <strong>${esc(params.periodLabel)}</strong> is attached as a PDF.</p>`
     ),
     attachments,
   });
+}
+
+export async function sendPasswordResetMail(to: string, username: string, resetKey: string) {
+  const resetUrl = appUrl(`/reset-password?email=${encodeURIComponent(to)}`);
+  return sendMail({
+    to,
+    subject: "Reset your Bannk password",
+    text: `Hi @${username},\n\nUse this reset WordKey to choose a new password:\n\n  ${resetKey}\n\nEnter it at ${resetUrl} within 30 minutes.\n\nIf you didn't ask for this, you can ignore this email — your password stays the same.`,
+    html: layout(
+      "Reset your password",
+      `<p style="font-size:14px;line-height:1.5">Hi @${esc(username)}, use this Nigerian-flavoured WordKey to set a new password. It expires in 30 minutes.</p>
+<div style="font-family:ui-monospace,Menlo,monospace;font-size:20px;font-weight:700;background:#f6f5f1;border:1px solid #e7e5dd;border-radius:12px;padding:16px;text-align:center;letter-spacing:.5px">${esc(resetKey)}</div>
+<p style="margin-top:20px"><a href="${esc(resetUrl)}" style="display:inline-block;background:#c5f63a;color:#16181d;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:12px">Choose a new password</a></p>
+<p style="font-size:12px;color:#6b6f78">Didn't ask for this? Ignore this email — your password stays the same.</p>`
+    ),
+  });
+}
+
+export async function sendTransactionAlertMail(params: {
+  to: string;
+  username: string;
+  kind: "credit" | "debit";
+  amount: string;
+  counterparty: string;
+  reference: string;
+  description?: string | null;
+  maskedBalance: string;
+  when: string;
+  receiptUrl: string;
+  attachments?: MailAttachment[];
+}) {
+  const p = params;
+  const credit = p.kind === "credit";
+  const title = credit ? "Bannk credit" : "Bannk debit";
+  const rows: Array<[string, string]> = [
+    ["Amount", `${credit ? "+" : "−"}${p.amount}`],
+    [credit ? "From" : "To", p.counterparty],
+    ["Reference", p.reference],
+    ...(p.description ? ([["Description", p.description]] as Array<[string, string]>) : []),
+    ["Available balance", p.maskedBalance],
+    ["Date", p.when],
+  ];
+  const text = [
+    `Hi @${p.username},`,
+    "",
+    `${title} alert`,
+    ...rows.map(([k, v]) => `${k}: ${v}`),
+    "",
+    `View receipt: ${p.receiptUrl}`,
+  ].join("\n");
+  const html = layout(
+    title,
+    `<p style="font-size:14px;line-height:1.5;margin:0 0 16px">Hi @${esc(p.username)}, ${credit ? "money just landed in" : "money just left"} your Bannk wallet.</p>
+<div style="border-radius:16px;padding:18px;background:${credit ? "#f1fbd2" : "#fff3ea"};text-align:center;margin-bottom:16px">
+<div style="font-size:12px;color:#6b6f78;text-transform:uppercase;letter-spacing:1px">${credit ? "Credit" : "Debit"}</div>
+<div style="font-size:26px;font-weight:700;margin-top:4px;color:${credit ? "#1f8a4c" : "#16181d"}">${esc(rows[0][1])}</div>
+</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px">
+${rows
+  .slice(1)
+  .map(
+    ([k, v]) =>
+      `<tr><td style="padding:8px 0;color:#6b6f78;border-bottom:1px dashed #e7e5dd">${esc(k)}</td><td style="padding:8px 0;text-align:right;font-weight:600;border-bottom:1px dashed #e7e5dd">${esc(v)}</td></tr>`
+  )
+  .join("")}
+</table>
+<p style="margin-top:20px"><a href="${esc(p.receiptUrl)}" style="display:inline-block;background:#c5f63a;color:#16181d;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:12px">View receipt</a></p>`
+  );
+  return sendMail({ to: p.to, subject: title, text, html, attachments: p.attachments });
 }

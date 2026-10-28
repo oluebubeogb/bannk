@@ -62,7 +62,7 @@ export default function PublicProfilePage() {
           href="/send"
           className="mt-6 inline-flex h-11 px-6 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold text-sm items-center"
         >
-          Send credits
+          Send money
         </Link>
       </div>
       <Link href="/" className="mt-8 text-sm text-[var(--text-muted)]">

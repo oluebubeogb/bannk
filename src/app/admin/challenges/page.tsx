@@ -102,7 +102,7 @@ export default function AdminChallenges() {
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={textareaCls} />
               </Field>
             </div>
-            <Field label="Reward (virtual, member's home currency)" hint="Locked once anyone has completed it.">
+            <Field label="Reward (member's home currency)" hint="Locked once anyone has completed it.">
               <input inputMode="decimal" value={form.reward} onChange={(e) => setForm({ ...form, reward: e.target.value })} placeholder="0" className={inputCls} />
             </Field>
             <Field label={`Linked campaign${form.kind === "sponsored" ? " (required)" : " (optional)"}`}>

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/kit";
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -69,12 +71,15 @@ export default function VerifyPage() {
 
   return (
     <div className="min-h-dvh flex flex-col px-5 pt-10 pb-8 safe-top safe-bottom max-w-md mx-auto">
-      <Link href="/register" className="text-sm text-[var(--text-muted)] mb-8">
-        ← Back
-      </Link>
+      <div className="flex items-center justify-between mb-8">
+        <Link href="/register" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
+          <ArrowLeft size={16} /> Back
+        </Link>
+        <Logo size={30} />
+      </div>
       <h1 className="text-2xl font-bold mb-1">Verify with WordKey</h1>
       <p className="text-[var(--text-muted)] text-sm mb-8">
-        Enter the four-word African-origin phrase we sent you.
+        Enter the four-word Nigerian-flavoured WordKey we emailed you. Capital letters don&apos;t matter.
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -95,7 +100,7 @@ export default function VerifyPage() {
             value={wordKey}
             onChange={(e) => setWordKey(e.target.value)}
             className="w-full h-12 px-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] font-mono tracking-wide"
-            placeholder="ubuntu-sankofa-harambee-asante"
+            placeholder="jollof-kaduna-ikenna-suya"
             autoCapitalize="none"
             autoCorrect="off"
           />

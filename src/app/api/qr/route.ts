@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { generateProfileQrDataUrl, profileUrl } from "@/lib/qr";
 
+export const runtime = "nodejs";
+
+/** GET /api/qr — branded profile QR (Bannk mark centred, bold @username below). */
 export async function GET() {
   const user = await getSessionUser();
   if (!user || !user.profile) {
@@ -12,5 +15,5 @@ export async function GET() {
   const dataUrl = await generateProfileQrDataUrl(username);
   const url = profileUrl(username);
 
-  return NextResponse.json({ username, url, qrDataUrl: dataUrl });
+  return NextResponse.json({ username, url, qrDataUrl: dataUrl, downloadUrl: "/api/qr/image?download=1" });
 }

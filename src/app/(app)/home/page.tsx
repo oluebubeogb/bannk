@@ -3,24 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-
-function formatMoney(minor: number, currency: string) {
-  const value = minor / 100;
-  try {
-    return new Intl.NumberFormat("en", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
-}
+import { Send, History, QrCode, Users, ArrowLeftRight, Compass, Gauge, ChevronRight, ShieldCheck } from "lucide-react";
+import { fmt, fmtDate } from "@/components/ui";
+import { EyeToggle, IconCircle, InfoTip, Logo, maskMoney, useBalanceVisible } from "@/components/kit";
 
 export default function HomePage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { visible, toggle } = useBalanceVisible();
 
   useEffect(() => {
     fetch("/api/me")
@@ -41,7 +32,7 @@ export default function HomePage() {
     return (
       <div className="px-5 pt-8">
         <div className="h-8 w-32 rounded bg-[var(--surface)] animate-pulse mb-6" />
-        <div className="h-28 rounded-2xl bg-[var(--surface)] animate-pulse" />
+        <div className="h-40 rounded-3xl bg-[var(--surface)] animate-pulse" />
       </div>
     );
   }
@@ -50,78 +41,105 @@ export default function HomePage() {
 
   const allowance = data.allowance;
   const remainingPct =
-    allowance?.capMinor > 0
-      ? Math.round(((allowance.capMinor - allowance.usedMinor) / allowance.capMinor) * 100)
-      : 100;
+    allowance?.capMinor > 0 ? Math.max(0, Math.round(((allowance.capMinor - allowance.usedMinor) / allowance.capMinor) * 100)) : 100;
+  const name = data.displayName || data.username;
+
+  const actions = [
+    { href: "/send", label: "Send", icon: Send, tone: "lime" as const },
+    { href: "/exchange#receive", label: "Receive", icon: QrCode, tone: "sky" as const },
+    { href: "/wallet", label: "History", icon: History, tone: "peach" as const },
+    { href: "/exchange", label: "Exchange", icon: ArrowLeftRight, tone: "lilac" as const },
+  ];
 
   return (
-    <div className="px-5 pt-8 pb-6">
-      <header className="flex items-center justify-between mb-8">
-        <div>
-          <p className="text-sm text-[var(--text-muted)]">Welcome back</p>
-          <h1 className="text-xl font-bold">{data.displayName || data.username}</h1>
-        </div>
-        <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold text-[var(--accent-ink)]">
-          {(data.displayName || data.username || "?").charAt(0).toUpperCase()}
-        </div>
+    <div className="px-5 pt-6 pb-6">
+      <header className="flex items-center justify-between mb-6">
+        <Logo size={34} />
+        <Link
+          href="/profile"
+          aria-label="Profile"
+          className="w-10 h-10 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-sm flex items-center justify-center text-sm font-semibold text-[var(--accent-ink)] hover:scale-105 transition"
+        >
+          {(name || "?").charAt(0).toUpperCase()}
+        </Link>
       </header>
 
+      <p className="text-sm text-[var(--text-muted)]">Welcome back</p>
+      <h1 className="text-xl font-bold mb-4">{name}</h1>
+
       {/* Balance card */}
-      <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-4">
-        <p className="text-sm text-[var(--text-muted)] mb-1">Available balance</p>
-        <p className="text-3xl font-bold tabular tracking-tight mb-4">
-          {formatMoney(data.balanceMinor ?? 0, data.homeCurrency)}
-        </p>
-        <div className="flex gap-3">
-          <Link
-            href="/send"
-            className="flex-1 h-11 rounded-xl bg-[var(--accent)] text-[var(--on-accent)] font-semibold text-sm flex items-center justify-center"
-          >
-            Send
-          </Link>
-          <Link
-            href="/wallet"
-            className="flex-1 h-11 rounded-xl border border-[var(--border)] text-sm font-medium flex items-center justify-center"
-          >
-            History
-          </Link>
+      <div className="hero-gradient relative overflow-hidden rounded-3xl p-5 mb-4 shadow-[0_18px_40px_-18px_rgba(79,122,6,.55)]">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/30 blur-2xl" aria-hidden />
+        <div className="relative">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm text-[#2f4a00]/80 font-medium">Available balance</p>
+            <EyeToggle visible={visible} onToggle={toggle} />
+          </div>
+          <p className="text-[34px] leading-tight font-bold tabular tracking-tight text-[var(--text)] mb-5" aria-live="polite">
+            {maskMoney(data.balanceMinor ?? 0, data.homeCurrency, visible)}
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {actions.map((a) => (
+              <Link
+                key={a.label}
+                href={a.href}
+                className="tile press flex flex-col items-center gap-1.5 rounded-2xl bg-white/60 hover:bg-white/85 backdrop-blur py-2.5 text-xs font-medium transition"
+              >
+                <IconCircle icon={a.icon} tone={a.tone} size={36} />
+                {a.label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Weekly allowance */}
-      <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-6">
+      <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-medium">This week&apos;s allowance</p>
-          <span className="text-xs text-[var(--text-muted)]">
-            {remainingPct}% left
-          </span>
+          <div className="flex items-center gap-2.5">
+            <IconCircle icon={Gauge} tone="sun" size={32} />
+            <p className="text-sm font-medium">This week&apos;s allowance</p>
+            <InfoTip label="Allowance details">
+              Cap {fmt(allowance?.capMinor ?? 0, data.homeCurrency)} · Resets weekly
+              {allowance?.periodEnd ? ` (next: ${fmtDate(allowance.periodEnd)})` : ""}
+            </InfoTip>
+          </div>
+          <span className="text-xs font-semibold text-[var(--accent-ink)]">{remainingPct}% left</span>
         </div>
-        <div className="h-2 rounded-full bg-[var(--bg)] overflow-hidden mb-2">
+        <div className="h-2.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
           <div
-            className="h-full rounded-full bg-[var(--accent)] transition-all"
+            className="h-full rounded-full bg-gradient-to-r from-[#a6d81f] to-[var(--accent)] transition-all"
             style={{ width: `${remainingPct}%` }}
           />
         </div>
-        <p className="text-xs text-[var(--text-muted)]">
-          Cap {formatMoney(allowance?.capMinor ?? 0, data.homeCurrency)} · Resets weekly
-        </p>
       </div>
 
-      {/* Community */}
-      <Link
-        href="/community"
-        className="flex items-center justify-between rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-6"
-      >
-        <div>
-          <p className="text-sm font-medium">Community</p>
-          <p className="text-xs text-[var(--text-muted)]">Challenges, groups &amp; leaderboards</p>
-        </div>
-        <span className="text-[var(--accent-ink)] text-sm font-medium">Open →</span>
-      </Link>
+      {!data.hasPin && (
+        <Link
+          href="/profile#security"
+          className="tile flex items-center gap-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-4 mb-4"
+        >
+          <IconCircle icon={ShieldCheck} tone="rose" size={38} />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Set your transaction PIN</p>
+            <p className="text-xs text-[var(--text-muted)]">You&apos;ll need a 4-digit PIN before your first transfer.</p>
+          </div>
+          <ChevronRight size={18} className="text-[var(--text-muted)]" />
+        </Link>
+      )}
 
-      <p className="text-xs text-center text-[var(--text-muted)]">
-        All balances are simulated virtual credits.
-      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/community" className="tile rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-4">
+          <IconCircle icon={Users} tone="mint" size={38} />
+          <p className="text-sm font-medium mt-3">Community</p>
+          <p className="text-xs text-[var(--text-muted)]">Challenges, groups &amp; leaderboards</p>
+        </Link>
+        <Link href="/discover" className="tile rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-4">
+          <IconCircle icon={Compass} tone="lilac" size={38} />
+          <p className="text-sm font-medium mt-3">Discover</p>
+          <p className="text-xs text-[var(--text-muted)]">Businesses &amp; campaigns</p>
+        </Link>
+      </div>
     </div>
   );
 }

@@ -257,6 +257,6 @@ export async function getLeaderboard(currencyCode = "NGN", limit = 10) {
     balances: map(balances),
     portfolios: map(portfolios),
     challenges: map(challengers),
-    note: "Public profiles only. All values are simulated virtual credits.",
+    note: "Public profiles only.",
   };
 }

@@ -1,7 +1,7 @@
 {
   "name": "Bannk",
   "short_name": "Bannk",
-  "description": "Banking without borders — virtual economy",
+  "description": "Send, receive and request money with your @username",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f6f5f1",

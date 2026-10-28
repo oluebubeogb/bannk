@@ -31,27 +31,50 @@ export function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
 }
 
-/** WordKey: African-origin phrase for email verification */
-const WORDKEY_VOCAB = [
-  "ubuntu", "sankofa", "harambee", "ujamaa", "asante", "kente", "baobab",
-  "serengeti", "kilimanjaro", "zambezi", "nile", "sahara", "okavango",
-  "mandela", "lumumba", "nkrumah", "senghor", "cabral", "fanon",
-  "amara", "zuri", "kofi", "amina", "tunde", "chidi", "nneka", "adebayo",
-  "jollof", "fufu", "injera", "suya", "nyama", "simba", "tembo", "ndovu",
+/**
+ * WordKey: a Nigerian-flavoured phrase (cities, peoples, food, names) used for
+ * email verification and password reset. Lowercase; matching is case-insensitive.
+ * 128 words → no modulo bias with a random byte; 4 words ≈ 28 bits, plus expiry + attempt caps.
+ */
+export const WORDKEY_VOCAB = [
+  "lagos", "abuja", "kaduna", "kano", "enugu", "ibadan", "jos", "owerri", "calabar", "benin",
+  "warri", "onitsha", "aba", "ilorin", "sokoto", "zaria", "yola", "uyo", "akure", "abeokuta",
+  "osogbo", "makurdi", "lokoja", "minna", "bauchi", "gombe", "katsina", "kebbi", "ekiti",
+  "ondo", "oyo", "delta", "anambra", "imo", "ebonyi", "nsukka", "ikeja", "lekki", "yaba",
+  "surulere", "ajah", "badagry", "epe", "ikorodu", "asaba", "nnewi", "efik", "ibibio", "igbo",
+  "yoruba", "hausa", "tiv", "ijaw", "edo", "urhobo", "itsekiri", "nupe", "kanuri", "fulani",
+  "idoma", "igala", "isoko", "jollof", "suya", "egusi", "ogbono", "amala", "eba", "fufu",
+  "moimoi", "akara", "puffpuff", "chinchin", "zobo", "kunu", "garri", "yam", "plantain",
+  "dodo", "ofada", "ewedu", "gbegiri", "efo", "banga", "nkwobi", "palm", "pepper", "kilishi",
+  "masa", "tuwo", "boli", "abacha", "okpa", "agidi", "ogi", "palmwine", "ponmo", "asun",
+  "ikenna", "chidi", "ngozi", "emeka", "tunde", "bisi", "kemi", "femi", "amaka", "uche",
+  "obinna", "ada", "segun", "funmi", "musa", "aisha", "zainab", "ibrahim", "sade", "chioma",
+  "nkechi", "yemi", "dayo", "tobi", "kelechi", "ifeoma", "babajide", "olumide", "nnamdi",
+  "halima",
 ];
 
 export function generateWordKey(): string {
   const words: string[] = [];
+  const bytes = randomBytes(4);
   for (let i = 0; i < 4; i++) {
-    const idx = randomBytes(1)[0] % WORDKEY_VOCAB.length;
-    words.push(WORDKEY_VOCAB[idx]);
+    words.push(WORDKEY_VOCAB[bytes[i] % WORDKEY_VOCAB.length]);
   }
   return words.join("-");
 }
 
+/** "Ikenna Kaduna, suya-EFIK" → "ikenna-kaduna-suya-efik" (separators are forgiving). */
+export function normalizeWordKey(phrase: string): string {
+  return phrase
+    .toLowerCase()
+    .trim()
+    .split(/[\s,._\-]+/)
+    .filter(Boolean)
+    .join("-");
+}
+
 export function hashWordKey(phrase: string): string {
   const pepper = process.env.WORDKEY_PEPPER || "dev-pepper";
-  return createHash("sha256").update(phrase.toLowerCase().trim() + pepper).digest("hex");
+  return createHash("sha256").update(normalizeWordKey(phrase) + pepper).digest("hex");
 }
 
 export function verifyWordKey(phrase: string, hash: string): boolean {

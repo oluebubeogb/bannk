@@ -85,7 +85,7 @@ export default function AdminCampaigns() {
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={textareaCls} />
               </Field>
             </div>
-            <Field label="Budget (₦, virtual — informational)">
+            <Field label="Budget (₦, informational)">
               <input inputMode="decimal" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} placeholder="0" className={inputCls} />
             </Field>
             <div className="grid grid-cols-2 gap-3">

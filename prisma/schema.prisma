@@ -1,6 +1,5 @@
 // Bannk — Prisma schema (PostgreSQL)
 // Weekly allowance · Double-entry ledger · Exchange · Discover · Community
-// No seed data — start empty
 
 generator client {
   provider = "prisma-client-js"
@@ -20,6 +19,10 @@ model User {
   passwordHash    String
   emailVerifiedAt DateTime?
   status          String    @default("active") // active | suspended | deleted
+  pinHash         String? // bcrypt hash of the 4-digit transaction PIN (never the PIN itself)
+  pinSetAt        DateTime?
+  pinFailedCount  Int       @default(0)
+  pinLockedUntil  DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -40,6 +43,9 @@ model User {
   challengeCompletions   ChallengeCompletion[]
   groupsCreated          CommunityGroup[]
   groupMemberships       CommunityGroupMember[]
+  passwordResets         PasswordResetChallenge[]
+  paymentRequests        PaymentRequest[]         @relation("PaymentRequestPayee")
+  paymentRequestsPaid    PaymentRequest[]         @relation("PaymentRequestPayer")
 }
 
 model Profile {
@@ -54,6 +60,44 @@ model Profile {
   bio          String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Forgot-password: a Nigerian-flavoured reset key is emailed; only its hash is stored.
+model PasswordResetChallenge {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String
+  expiresAt    DateTime
+  attemptCount Int       @default(0)
+  consumedAt   DateTime?
+  requestIp    String?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Receive payment / invoice — a payee asks for a fixed amount via QR or link.
+model PaymentRequest {
+  id            String    @id @default(cuid())
+  token         String    @unique
+  payeeUserId   String
+  amountMinor   Int
+  currency      String    @default("NGN")
+  note          String?
+  status        String    @default("open") // open | paid | cancelled
+  expiresAt     DateTime?
+  paidByUserId  String?
+  transactionId String?   @unique
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  payee User  @relation("PaymentRequestPayee", fields: [payeeUserId], references: [id], onDelete: Cascade)
+  payer User? @relation("PaymentRequestPayer", fields: [paidByUserId], references: [id], onDelete: SetNull)
+
+  @@index([payeeUserId, createdAt])
 }
 
 model VerificationChallenge {

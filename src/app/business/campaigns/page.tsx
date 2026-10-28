@@ -97,7 +97,7 @@ export default function BusinessCampaigns() {
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={textareaCls} />
               </Field>
             </div>
-            <Field label="Budget (₦, virtual)" hint="Informational only — no real money is charged.">
+            <Field label="Budget (₦)" hint="Informational only — nothing is charged.">
               <input inputMode="decimal" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} placeholder="0" className={inputCls} />
             </Field>
             <div className="grid grid-cols-2 gap-3">

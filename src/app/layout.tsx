@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Bannk — Banking without borders",
-  description: "Virtual financial economy. Global-first PWA with African identity.",
+  description: "Bannk — send, receive and manage money with your @username. Built in Nigeria.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -31,7 +31,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <div className="bg-alive" aria-hidden>
+          <span />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

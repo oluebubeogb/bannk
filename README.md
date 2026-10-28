@@ -1,7 +1,7 @@
 # Bannk
 
-**Banking without borders.**  
-Virtual-only economy · Global-first PWA · African identity · Weekly allowance · PostgreSQL
+**Money that moves at your speed.**  
+Send, receive and request money with a @username · PWA · Built in Nigeria · PostgreSQL
 
 ## Stack
 
@@ -14,28 +14,32 @@ Virtual-only economy · Global-first PWA · African identity · Weekly allowance
 
 | Area | Included |
 |------|----------|
-| Auth | Register, WordKey verify, login, logout, sessions |
+| Auth | Register, Nigerian-flavoured WordKey verify (case-insensitive), login, logout, sessions, **forgot / reset password** via emailed WordKey, eye toggles on every password field |
+| Transaction PIN | 4-digit PIN (bcrypt-hashed only), set/change/remove in Profile → Security, required for every transfer; 5 wrong tries → 15 min lock |
 | Identity | Unique usernames, public profiles `/u/[username]`, QR identity |
 | Wallet | Multi-currency ready, balances, history |
 | Weekly allowance | 7-day periods, initial + weekly grants, spending cap on transfers |
 | Transfers | P2P by username, idempotent, atomic ledger |
-| Exchange | Simulated assets, market buy/sell, portfolio, P&amp;L |
+| Exchange | **Receive payment** invoices (amount + description → QR + link), listed assets, market buy/sell, portfolio, P&amp;L |
 | Discover | Product/event listings, search, create listing |
 | PWA shell | Mobile-first bottom nav, installable manifest |
-| Ledger | Double-entry journal, integer minor units, no seed required |
+| Ledger | Double-entry journal, integer minor units, starts from an empty DB |
+| Alerts | "Bannk credit" / "Bannk debit" emails on every transfer, partially masked balance, receipt PNG attached (`ALERT_EMAILS=false` to disable) |
+| Privacy | Balances masked (`NGN ******`) by default; eye toggle remembered per device |
 | Opening balance | **₦1,000,050.00** on verify (`INITIAL_ALLOWANCE_MINOR=100005000`) |
 | Receipts | `/receipt/[id]` after every transfer, deep-linkable, party-only (403 otherwise) |
-| Share | Native share sheet (`navigator.share`) with copy-link / copy-summary fallback |
-| Statements | Sleek **PDF** (primary) + CSV, any period up to 366 days, from Wallet |
+| Share | One **Share receipt** button → Image · PDF · Text · Private link (link opens only for the two parties) |
+| Statements | Sleek **PDF**, CSV and Email on one row, any period up to 366 days, from Wallet |
+| QR | Branded QR with the Bannk mark, bold @username, PNG download |
 | Mail | WordKey + emailed PDF statements via SMTP or Resend |
 | Schedule | `POST /api/cron/allowance` (Coolify scheduled task) |
-| Community | `/community` — challenges with idempotent virtual-credit rewards, public groups (create/join/leave), real-data leaderboards |
+| Community | `/community` — challenges with idempotent rewards, public groups (create/join/leave), real-data leaderboards |
 | Admin console | `/admin` — overview, users (search, suspend, audited balance adjustments), business review, listings, campaigns, challenges, reports, audit log. Access via `ADMIN_USERNAMES` only |
 | Business console | `/business` — any verified member submits a business → admin approves → owner drafts listings/campaigns → admin publishes; campaign metrics |
 | Moderation | Report a listing/user/campaign (`POST /api/reports`), reviewed in `/admin/reports` |
 | Theme | Light fintech UI (warm neutrals, charcoal ink, lime accent) |
 
-**Not in this build:** Redis-backed queues/rate limits, real-money rails, self-service ad billing, subdomains, chat, microservices.
+**Not in this build:** Redis-backed queues/rate limits, bank deposit/withdrawal rails, self-service ad billing, subdomains, chat, microservices.
 
 ## Prerequisites
 
@@ -70,8 +74,9 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
 | `APP_URL` | yes | `https://bannk.yourdomain.com` — used in emails and receipt share links |
 | `CRON_SECRET` | yes (for schedule) | `openssl rand -hex 24` |
 | `INITIAL_ALLOWANCE_MINOR` | no | `100005000` (₦1,000,050.00) — default if unset |
-| `WEEKLY_ALLOWANCE_MINOR` | no | `250000` (₦2,500.00) — weekly grant **and** weekly send cap |
+| `WEEKLY_ALLOWANCE_MINOR` | no | `25000000` (₦250,000.00) — weekly grant **and** weekly send cap |
 | `ALLOWANCE_PERIOD_DAYS` | no | `7` |
+| `ALERT_EMAILS` | no | `true` — credit/debit alert emails with receipt PNG; `false` disables |
 | `MAIL_PROVIDER` | yes (prod mail) | `smtp` or `resend` |
 | `MAIL_FROM` | yes | `Bannk <no-reply@yourdomain.com>` (must be a verified sender) |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | if smtp | 587 + `SMTP_SECURE=false` (STARTTLS) or 465 + `true` |
@@ -95,20 +100,20 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
 
 - On WordKey verify: one-time **opening balance ₦1,000,050.00** (`initial-allowance:<userId>`, idempotent).
 - Weekly grant (`WEEKLY_ALLOWANCE_MINOR`) starts the period *after* signup, via cron or login.
-- Transfers are capped per period at `WEEKLY_ALLOWANCE_MINOR` (existing spec rule). Raise it if you want users to move more of the opening balance each week.
+- Transfers are capped per period at `WEEKLY_ALLOWANCE_MINOR` (default **25000000 = ₦250,000.00**; shown in the app as a tooltip). Raise it if you want users to move more of the opening balance each week.
 
 ## Receipts, sharing & statements
 
 | What | Where |
 |---|---|
 | Receipt screen | `/receipt/[transactionId]` — opened automatically after Send; every Wallet activity row links to it |
-| Receipt API | `GET /api/transfers/[id]` → `{ receipt, shareUrl }` · 401 signed-out · 403 not a party · 404 unknown |
-| Share | Receipt → **Share receipt** (`navigator.share` with text + `APP_URL/receipt/<id>`), fallback copies text + link; **Copy link**, **Copy summary text** |
-| Statement download | Wallet → Statement (Last 30 days · This month · Last month · Custom) → **Download PDF** / CSV |
+| Receipt API | `GET /api/transfers/[id]` → `{ receipt, shareUrl, shareText }` · `/image` (PNG) · `/pdf` (`?download=1`) · 401 signed-out · 403 not a party · 404 unknown |
+| Share | Receipt → **Share receipt** → Image (PNG file share/download) · PDF · Text · Private link (`APP_URL/receipt/<id>`, party-only) |
+| Statement download | Wallet → Statement (Last 30 days · This month · Last month · Custom) → **PDF · CSV · Email** (one row) |
 | Statement API | `GET /api/statements?from=YYYY-MM-DD&to=YYYY-MM-DD&format=pdf\|csv\|json` (auth; default last 30 days; max 366 days; UTC days) |
 | Email statement | Wallet → **Email me this statement** → `POST /api/statements/email {from,to,includeCsv?}` — PDF attached, sent to the verified email. Returns 503 `MAIL_NOT_CONFIGURED` in production if mail isn't set; download still works |
 
-PDF contents: Bannk header, period, holder/username/email/currency, opening · money in · money out · closing cards, transaction table (date/time, description + counterparty + note, reference, signed amount, running balance), virtual-credits disclaimer + page numbers on every page. Fonts: Inter (OFL) embedded from `assets/fonts/` so ₦ renders.
+PDF contents: Bannk header, period, holder/username/email/currency, opening · money in · money out · closing cards, transaction table (date/time, description + counterparty + note, reference, signed amount, running balance), legal footer + page numbers on every page. Fonts: Inter (OFL) embedded from `assets/fonts/` so ₦ renders.
 
 CSV columns: `date,type,ref,counterparty,note,amount,balance_after,currency` with opening/closing rows.
 
@@ -161,6 +166,20 @@ Admin rights come **only** from the `ADMIN_USERNAMES` environment variable (comm
 | `POST /api/statements/email` | Email PDF statement |
 | `POST /api/cron/allowance` | Weekly grants (Bearer `CRON_SECRET`) |
 | `GET /api/health` | Liveness + DB ping |
+| `POST /api/auth/forgot` | Email a reset WordKey (generic reply; 1/min, 5/hour; 30-min expiry, hashed) |
+| `POST /api/auth/reset` | `{email, resetKey, newPassword}` → new password, all sessions revoked (5 attempts per key) |
+| `GET/POST/DELETE /api/me/pin` | PIN status · set/change (`currentPin` or `currentPassword` to change) · remove (`currentPassword`) |
+| `POST /api/me/password` | Change password (`currentPassword`, `newPassword`) |
+| `POST /api/transfers` | Now requires `pin`; optional `paymentRequestToken` (server-side amount/recipient win). Errors carry `code`: `PIN_NOT_SET` 428 · `PIN_INVALID` 403 · `PIN_LOCKED` 423 |
+| `GET /api/transfers/[id]/image` · `/pdf` | Receipt PNG / PDF (party-only, `?download=1`) |
+| `GET /api/qr/image` | Branded profile QR PNG (`?download=1`) |
+| `GET/POST /api/payment-requests` | My recent requests · create `{amountMinor, note?, expiresInDays 1–30}` |
+| `GET/DELETE /api/payment-requests/[token]` | Public invoice view · cancel (payee) |
+| `GET /api/payment-requests/[token]/qr` | Invoice QR PNG |
+
+### Pages added
+
+`/forgot-password`, `/reset-password`, `/pay/[token]` (public invoice → Pay → `/send?request=TOKEN`, PIN still required). `/` redirects signed-in users to `/home` server-side.
 
 ## Scripts
 
@@ -182,8 +201,9 @@ src/
     business/         # Business console (verified members)
     api/              # auth, me, wallets, transfers, statements, cron, health, community, campaigns, reports, business, admin, …
     u/[username]      # public profile
-    login|register|verify
-  components/         # BottomNav, StatementPanel, ui (console kit), MetricsRow
+    login|register|verify|forgot-password|reset-password
+    pay/[token]       # public payment request / invoice
+  components/         # BottomNav, StatementPanel, ReceivePanel, kit (Logo, IconCircle, PinPad, PasswordInput, InfoTip…), ui, MetricsRow
   lib/
     auth.ts           # WordKey, sessions, passwords
     ledger.ts         # double-entry, transfers, references (BNK-YYYYMMDD-XXXXXXXX)
@@ -194,13 +214,15 @@ src/
     admin.ts          # ADMIN_USERNAMES parsing + requireAdmin / withAdmin guards
     community.ts · business.ts · campaign-events.ts · api.ts · guards.ts
     exchange.ts · discover.ts · qr.ts · money.ts
+    pin.ts · paymentRequests.ts · alerts.ts · receiptRender.ts · render.ts · brand.ts
 prisma/
   schema.prisma
   migrations/20261027000000_init/                       # initial migration
   migrations/20261027220000_community_admin_business/   # challenges, groups, business review fields
+  migrations/20261028000000_pin_reset_payreq/           # transaction PIN, password reset challenges, payment requests
 assets/fonts/         # Inter for PDFs
 Dockerfile · docker-entrypoint.sh · .dockerignore
 docs/PRODUCT_SPEC.md
 ```
 
-All balances are **simulated virtual credits**. Bannk does not accept real deposits or process real money.
+Bannk is in pilot in Nigeria. Funding (deposits) and withdrawals to bank accounts are not part of this build.
