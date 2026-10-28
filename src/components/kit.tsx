@@ -227,7 +227,8 @@ export function Modal({ open, onClose, children, title }: { open: boolean; onClo
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="pop-in relative w-full max-w-sm rounded-t-3xl sm:rounded-3xl bg-[var(--surface)] p-5 pb-7 shadow-2xl safe-bottom"
+        className="pop-in relative w-full max-w-sm max-h-[90dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-[var(--surface)] px-5 pt-5 shadow-2xl"
+        style={{ paddingBottom: "calc(1.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
         <button
           type="button"

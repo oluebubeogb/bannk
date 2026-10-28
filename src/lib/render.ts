@@ -1,12 +1,12 @@
 /** SVG → PNG rendering with resvg (prebuilt native binary; works on Debian slim). */
-import { interFontFiles } from "./brand";
+import { renderFontFiles } from "./brand";
 
 export async function svgToPng(svg: string, width?: number): Promise<Buffer> {
   const { Resvg } = await import("@resvg/resvg-js");
   const resvg = new Resvg(svg, {
     fitTo: width ? { mode: "width", value: width } : { mode: "original" },
     font: {
-      fontFiles: interFontFiles(),
+      fontFiles: renderFontFiles(),
       loadSystemFonts: false,
       defaultFontFamily: "Inter",
       sansSerifFamily: "Inter",

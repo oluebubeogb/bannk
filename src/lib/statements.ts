@@ -2,7 +2,7 @@
  * Account statements — data, CSV, and PDF.
  */
 import path from "path";
-import { logoMarkPng } from "./brand";
+import { logoMarkPng, righteousFontPath } from "./brand";
 import fs from "fs";
 import { prisma } from "./prisma";
 import { formatMoney } from "./money";
@@ -287,6 +287,8 @@ export async function statementToPdf(s: Statement): Promise<Buffer> {
     doc.registerFont("InterSemi", semibold!);
     doc.registerFont("InterBold", bold!);
   }
+  const brandFontFile = righteousFontPath();
+  if (brandFontFile) doc.registerFont("Brand", brandFontFile);
   // Helvetica lacks ₦ — fall back to ISO code in that case.
   const money = (minor: number, signed = false) => {
     const abs = Math.abs(minor);
@@ -345,7 +347,7 @@ export async function statementToPdf(s: Statement): Promise<Buffer> {
   } else {
     doc.roundedRect(L, 42, 28, 28, 8).fill(C.lime);
   }
-  doc.font(F.bold).fontSize(17).fillColor(C.ink).text("bannk", L + 36, 45);
+  doc.font(brandFontFile ? "Brand" : F.bold).fontSize(18).fillColor(C.ink).text("bannk", L + 36, 44);
   doc.font(F.regular).fontSize(9).fillColor(C.muted).text("Banking without borders", L + 36, 64);
 
   doc.font(F.semibold).fontSize(9).fillColor(C.muted).text("ACCOUNT STATEMENT", L, 48, { width: W, align: "right", characterSpacing: 0.8 });

@@ -1,5 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
+
+/** Righteous (OFL), self-hosted — brand wordmark "bannk" only. */
+const brandFont = localFont({
+  src: "../../assets/fonts/Righteous-Regular.ttf",
+  weight: "400",
+  style: "normal",
+  display: "swap",
+  variable: "--font-brand",
+  fallback: ["Arial Rounded MT Bold", "Trebuchet MS", "system-ui", "sans-serif"],
+});
 
 export const metadata: Metadata = {
   title: "Bannk — Banking without borders",
@@ -30,7 +41,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={brandFont.variable}>
       <body className="antialiased">
         <div className="bg-alive" aria-hidden>
           <span />

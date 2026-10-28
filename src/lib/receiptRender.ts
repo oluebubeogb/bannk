@@ -3,7 +3,7 @@
  * Party-only: callers must load the receipt via getReceiptForUser().
  */
 import type { Receipt } from "./receipts";
-import { BRAND, dataUri, interFontPath, logoMarkPng } from "./brand";
+import { BRAND, dataUri, interFontPath, logoMarkPng, righteousFontPath } from "./brand";
 import { formatDateTime, formatMinor } from "./money";
 import { svgToPng, xmlEsc } from "./render";
 import { appUrl } from "./mail";
@@ -126,7 +126,7 @@ export function receiptSvg(r: Receipt): string {
 <rect width="${W}" height="${H}" fill="url(#bg)"/>
 <rect width="${W}" height="${H}" fill="url(#glow)"/>
 ${logo ? `<image href="${logo}" x="${pad}" y="${pad}" width="56" height="56" clip-path="url(#lc)"/>` : `<rect x="${pad}" y="${pad}" width="56" height="56" rx="16" fill="${BRAND.lime}"/>`}
-<text x="${pad + 72}" y="${pad + 37}" font-family="Inter" font-weight="700" font-size="30" fill="${BRAND.ink}" letter-spacing="-0.5">bannk</text>
+<text x="${pad + 70}" y="${pad + 39}" font-family="Righteous, Inter" font-size="32" fill="${BRAND.ink}">bannk</text>
 <text x="${W - pad}" y="${pad + 24}" text-anchor="end" font-family="Inter" font-weight="600" font-size="15" fill="${BRAND.muted}" letter-spacing="2">TRANSACTION RECEIPT</text>
 <text x="${W - pad}" y="${pad + 48}" text-anchor="end" font-family="Inter" font-size="15" fill="${BRAND.muted}">${xmlEsc(r.reference)}</text>
 
@@ -162,6 +162,8 @@ export async function receiptPdf(r: Receipt): Promise<Buffer> {
   if (reg) doc.registerFont("R", reg);
   if (semi) doc.registerFont("S", semi);
   if (bold) doc.registerFont("B", bold);
+  const brandFont = righteousFontPath();
+  if (brandFont) doc.registerFont("Brand", brandFont);
   const F = (k: "R" | "S" | "B") => (k === "R" ? (reg ? "R" : "Helvetica") : k === "S" ? (semi ? "S" : "Helvetica-Bold") : bold ? "B" : "Helvetica-Bold");
 
   const W = 420;
@@ -180,7 +182,7 @@ export async function receiptPdf(r: Receipt): Promise<Buffer> {
   } else {
     doc.roundedRect(28, 28, 32, 32, 9).fill(BRAND.lime);
   }
-  doc.font(F("B")).fontSize(18).fillColor(BRAND.ink).text("bannk", 68, 34);
+  doc.font(brandFont ? "Brand" : F("B")).fontSize(19).fillColor(BRAND.ink).text("bannk", 68, 33);
   doc.font(F("S")).fontSize(7.5).fillColor(BRAND.muted).text("TRANSACTION RECEIPT", 200, 32, { width: 192, align: "right", characterSpacing: 1.2 });
   doc.font(F("R")).fontSize(8).text(r.reference, 200, 45, { width: 192, align: "right" });
 

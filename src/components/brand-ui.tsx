@@ -16,7 +16,7 @@ export function Logo({ size = 32, withWord = true, className = "" }: { size?: nu
         className="rounded-[28%] shadow-sm"
         style={{ width: size, height: size }}
       />
-      {withWord && <span className="font-bold tracking-tight text-[var(--text)]" style={{ fontSize: size * 0.62 }}>bannk</span>}
+      {withWord && <span className="font-brand leading-none text-[var(--text)]" style={{ fontSize: size * 0.66 }}>bannk</span>}
     </span>
   );
 }

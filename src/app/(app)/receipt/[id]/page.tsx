@@ -50,11 +50,15 @@ function title(r: Receipt) {
   return r.direction === "credit" ? "Credit" : "Debit";
 }
 
-function Row({ label, children, mono }: { label: string; children: React.ReactNode; mono?: boolean }) {
+function Row({ label, children, mono, last }: { label: string; children: React.ReactNode; mono?: boolean; last?: boolean }) {
   return (
-    <div className="flex items-start justify-between gap-4 px-4 py-3 text-sm">
+    <div
+      className={`flex items-start justify-between gap-4 py-3.5 text-sm ${
+        last ? "" : "border-b border-dotted border-[#d9d6cc]"
+      }`}
+    >
       <span className="text-[var(--text-muted)] shrink-0">{label}</span>
-      <span className={`text-right font-medium break-all ${mono ? "font-mono text-xs tracking-wide pt-0.5" : ""}`}>
+      <span className={`text-right font-semibold text-[var(--text)] break-all min-w-0 ${mono ? "font-mono text-xs font-medium tracking-wide pt-0.5" : ""}`}>
         {children}
       </span>
     </div>
@@ -220,54 +224,100 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
         <Link href="/wallet" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
           <ArrowLeft size={16} /> Wallet
         </Link>
-        <Logo size={24} />
       </div>
 
-      <div className="relative rounded-3xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden mb-5 no-lift">
-        <div className="absolute inset-x-0 top-0 h-28 hero-gradient opacity-60" aria-hidden />
-        <div className="relative px-5 pt-7 pb-6 text-center">
-          <div className="flex justify-center mb-4">
-            <IconCircle icon={incoming ? ArrowDownLeft : ArrowUpRight} tone={incoming ? "mint" : "ink"} size={56} />
-          </div>
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-muted)] mb-1">TRANSACTION RECEIPT</p>
-          <p className="text-sm text-[var(--text-muted)] mb-1">
-            {isNew && receipt.direction === "sent" ? "Sent successfully" : title(receipt)}
-          </p>
-          <p className={`text-[34px] leading-tight font-bold tabular tracking-tight ${incoming ? "text-[var(--success)]" : ""}`}>
-            {incoming ? "+" : "−"}
-            {formatMoney(receipt.amountMinor, receipt.currency)}
-          </p>
-          <span className="inline-flex mt-3 items-center gap-1.5 rounded-full bg-[#e6f4ec] text-[var(--success)] px-3 py-1 text-xs font-semibold capitalize">
-            <CheckCircle2 size={13} />
-            {receipt.status === "completed" ? "Successful" : receipt.status}
-          </span>
-        </div>
+      <div className="receipt-sheet relative rounded-[28px] overflow-hidden border border-[var(--border)] shadow-[0_18px_40px_-24px_rgba(22,24,29,.35)] mb-5 no-lift">
+        {/* Brand wash — same palette as the shared PNG/PDF */}
+        <div className="absolute inset-0 bg-[linear-gradient(140deg,#f3fbd9_0%,#fbf7ea_48%,#fff0e4_100%)]" aria-hidden />
+        <div className="absolute -top-16 -right-10 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(197,246,58,.55),rgba(197,246,58,0)_70%)]" aria-hidden />
 
-        <div className="relative border-t border-dashed border-[var(--border)] divide-y divide-[var(--border)]">
-          <Row label="From">
-            {receipt.sender ? (
-              <>
-                {receipt.sender.displayName && <span className="block">{receipt.sender.displayName}</span>}
-                <span className="text-[var(--text-muted)] font-normal">@{receipt.sender.username}</span>
-              </>
-            ) : "Bannk"}
-          </Row>
-          <Row label="To">
-            {receipt.recipient ? (
-              <>
-                {receipt.recipient.displayName && <span className="block">{receipt.recipient.displayName}</span>}
-                <span className="text-[var(--text-muted)] font-normal">@{receipt.recipient.username}</span>
-              </>
-            ) : "—"}
-          </Row>
-          {receipt.note && <Row label="Note">{receipt.note}</Row>}
-          <Row label="Date">
-            {d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })},{" "}
-            {d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-          </Row>
-          <Row label="Type"><span className="capitalize">{receipt.type.replace(/_/g, " ")}</span></Row>
-          <Row label="Reference" mono>{receipt.reference}</Row>
-          <Row label="Transaction ID" mono>{receipt.id}</Row>
+        <div className="relative px-4 sm:px-5 pt-5 pb-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <Logo size={30} />
+            <div className="text-right min-w-0">
+              <p className="text-[10px] font-semibold tracking-[0.2em] text-[var(--text-muted)]">TRANSACTION RECEIPT</p>
+              <p className="text-[11px] text-[var(--text-muted)] font-mono truncate">{receipt.reference}</p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl bg-white shadow-[0_12px_30px_-14px_rgba(22,24,29,.22)] overflow-hidden">
+            <div className="px-5 pt-7 pb-6 text-center">
+              <div className="flex justify-center mb-4">
+                <span
+                  aria-hidden
+                  className="inline-flex h-[60px] w-[60px] items-center justify-center rounded-full"
+                  style={{ background: incoming ? "#ecfbc4" : "#fff0e4", color: incoming ? "#4f7a06" : "#c2410c" }}
+                >
+                  {incoming ? <ArrowDownLeft size={28} strokeWidth={2.4} /> : <ArrowUpRight size={28} strokeWidth={2.4} />}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-[var(--text-muted)] mb-1">
+                {isNew && receipt.direction === "sent" ? "Sent successfully" : title(receipt)}
+              </p>
+              <p
+                className={`text-[32px] sm:text-[36px] leading-tight font-bold tabular tracking-tight break-words ${
+                  incoming ? "text-[var(--success)]" : "text-[var(--text)]"
+                }`}
+              >
+                {incoming ? "+" : "−"}
+                {formatMoney(receipt.amountMinor, receipt.currency)}
+              </p>
+              <span className="inline-flex mt-3 items-center gap-1.5 rounded-full bg-[#ecfbc4] text-[#4f7a06] px-3.5 py-1 text-xs font-semibold capitalize">
+                <CheckCircle2 size={13} />
+                {receipt.status === "completed" ? "Successful" : receipt.status}
+              </span>
+            </div>
+
+            <div className="mx-5 border-t border-[var(--border)]" />
+
+            <div className="px-5 pb-2">
+              <Row label="From">
+                {receipt.sender ? (
+                  <>
+                    {receipt.sender.displayName && receipt.sender.displayName !== receipt.sender.username && (
+                      <span className="block font-semibold">{receipt.sender.displayName}</span>
+                    )}
+                    <span className={receipt.sender.displayName && receipt.sender.displayName !== receipt.sender.username ? "text-[var(--text-muted)] font-normal" : "font-semibold"}>
+                      @{receipt.sender.username}
+                    </span>
+                  </>
+                ) : (
+                  "Bannk"
+                )}
+              </Row>
+              <Row label="To">
+                {receipt.recipient ? (
+                  <>
+                    {receipt.recipient.displayName && receipt.recipient.displayName !== receipt.recipient.username && (
+                      <span className="block font-semibold">{receipt.recipient.displayName}</span>
+                    )}
+                    <span className={receipt.recipient.displayName && receipt.recipient.displayName !== receipt.recipient.username ? "text-[var(--text-muted)] font-normal" : "font-semibold"}>
+                      @{receipt.recipient.username}
+                    </span>
+                  </>
+                ) : (
+                  "—"
+                )}
+              </Row>
+              {receipt.note && <Row label="Note">{receipt.note}</Row>}
+              <Row label="Date">
+                {d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })},{" "}
+                {d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+              </Row>
+              <Row label="Type"><span className="capitalize">{receipt.type.replace(/_/g, " ")}</span></Row>
+              <Row label="Reference" mono>{receipt.reference}</Row>
+              <Row label="Transaction ID" mono last>{receipt.id}</Row>
+            </div>
+          </div>
+
+          <p className="mt-4 px-4 text-center text-[11px] leading-relaxed text-[var(--text-muted)]">
+            Issued by Bannk. This receipt is confidential and valid only for the parties named above.
+          </p>
+          <p className="mt-1.5 flex items-center justify-center gap-1.5 text-xs text-[var(--text)]">
+            <span className="font-brand text-[13px]">bannk</span>
+            <span className="text-[var(--text-muted)]">·</span>
+            <span className="font-medium">{(() => { try { return new URL(shareUrl).host; } catch { return ""; } })()}</span>
+          </p>
         </div>
       </div>
 
@@ -283,7 +333,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
       </p>
 
       <Modal open={menuOpen} onClose={() => setMenuOpen(false)} title="Share receipt">
-        <h3 className="font-semibold mb-3">Share receipt</h3>
+        <h3 className="font-semibold mb-4 pr-10">Share receipt</h3>
         <div className="space-y-2">
           {options.map((o) => (
             <button

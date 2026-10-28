@@ -43,6 +43,17 @@ export function interFontFiles(): string[] {
     .filter((p): p is string => !!p);
 }
 
+/** Righteous (OFL) — brand wordmark "bannk" only. */
+export function righteousFontPath(): string | null {
+  return resolveAsset("fonts", "Righteous-Regular.ttf");
+}
+
+/** Inter + Righteous, for resvg renders. */
+export function renderFontFiles(): string[] {
+  const r = righteousFontPath();
+  return r ? [...interFontFiles(), r] : interFontFiles();
+}
+
 export function interFontPath(weight: "Regular" | "SemiBold" | "Bold"): string | null {
   return resolveAsset("fonts", `Inter-${weight}.ttf`);
 }

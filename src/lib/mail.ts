@@ -128,11 +128,12 @@ export function appUrl(path = "") {
 
 export function layout(title: string, inner: string) {
   const logo = appUrl("/brand/logo-mark.png");
-  return `<!doctype html><html><body style="margin:0;background:#f6f5f1;font-family:Inter,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#16181d">
+  const brandFont = appUrl("/fonts/Righteous-Regular.ttf");
+  return `<!doctype html><html><head><meta charset="utf-8"/><style>@font-face{font-family:'Righteous';font-style:normal;font-weight:400;src:url('${brandFont}') format('truetype');}</style></head><body style="margin:0;background:#f6f5f1;font-family:Inter,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#16181d">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px;background:linear-gradient(135deg,#f1fbd2,#fbf7ea 55%,#fff0e4)"><tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border:1px solid #e7e5dd;border-radius:20px;padding:28px;box-shadow:0 8px 28px rgba(22,24,29,.06)">
 <tr><td>
-<div style="font-weight:700;font-size:20px;margin-bottom:22px;letter-spacing:-.3px"><img src="${esc(logo)}" width="30" height="30" alt="" style="vertical-align:middle;border-radius:9px;margin-right:8px;background:#c5f63a"/>bannk</div>
+<div style="font-size:22px;margin-bottom:22px;line-height:30px"><img src="${esc(logo)}" width="30" height="30" alt="" style="vertical-align:middle;border-radius:9px;margin-right:8px;background:#c5f63a"/><span style="font-family:Righteous,'Arial Rounded MT Bold','Trebuchet MS',Inter,Arial,sans-serif;font-weight:400;vertical-align:middle;letter-spacing:.2px">bannk</span></div>
 <h1 style="font-size:18px;margin:0 0 12px">${esc(title)}</h1>
 ${inner}
 <p style="font-size:12px;color:#6b6f78;margin-top:28px;border-top:1px solid #efede6;padding-top:14px">Bannk will never ask for your password, PIN or WordKey. If this wasn't you, reset your password and contact support.</p>

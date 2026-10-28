@@ -192,3 +192,17 @@ button:hover > .icon-circle {
     transform: none;
   }
 }
+
+/* Brand wordmark — Righteous (self-hosted via next/font/local; /fonts copy is a fallback). */
+@font-face {
+  font-family: "Righteous Local";
+  src: url("/fonts/Righteous-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+.font-brand {
+  font-family: var(--font-brand, "Righteous Local"), "Righteous Local", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}

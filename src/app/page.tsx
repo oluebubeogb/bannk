@@ -39,10 +39,6 @@ export default async function LandingPage() {
 
       <header className="px-5 pt-12 sm:pt-20 pb-10 max-w-5xl mx-auto w-full grid gap-10 sm:grid-cols-[1.15fr_1fr] items-center">
         <div>
-          <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-white/70 border border-[var(--border)] text-xs font-medium text-[var(--accent-ink)] shadow-sm mb-6">
-            <span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_0_3px_rgba(197,246,58,.35)]" />
-            Piloting in Nigeria
-          </span>
           <h1 className="text-4xl sm:text-5xl font-bold leading-[1.05] tracking-tight mb-5">
             Money that moves
             <br />
