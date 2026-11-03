@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, History, QrCode, Users, ArrowLeftRight, Compass, Gauge, ChevronRight, ShieldCheck } from "lucide-react";
+import { Send, History, QrCode, Users, ArrowLeftRight, Compass, CalendarClock, ChevronRight, ShieldCheck } from "lucide-react";
 import { fmt, fmtDate } from "@/components/ui";
 import { EyeToggle, IconCircle, InfoTip, Logo, maskMoney, useBalanceVisible } from "@/components/kit";
 
@@ -40,8 +40,11 @@ export default function HomePage() {
   if (!data) return null;
 
   const allowance = data.allowance;
-  const remainingPct =
-    allowance?.capMinor > 0 ? Math.max(0, Math.round(((allowance.capMinor - allowance.usedMinor) / allowance.capMinor) * 100)) : 100;
+  const pStart = allowance?.periodStart ? new Date(allowance.periodStart).getTime() : 0;
+  const pNext = allowance?.nextCreditAt ? new Date(allowance.nextCreditAt).getTime() : 0;
+  const nowMs = Date.now();
+  const cyclePct = pNext > pStart ? Math.min(100, Math.max(0, Math.round(((nowMs - pStart) / (pNext - pStart)) * 100))) : 0;
+  const daysToNext = pNext ? Math.max(0, Math.ceil((pNext - nowMs) / 86400000)) : 0;
   const name = data.displayName || data.username;
 
   const actions = [
@@ -93,25 +96,35 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Weekly allowance */}
+      {/* Weekly allowance — recurring credit, not a spend cap */}
       <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 mb-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">
-            <IconCircle icon={Gauge} tone="sun" size={32} />
-            <p className="text-sm font-medium">This week&apos;s allowance</p>
+            <IconCircle icon={CalendarClock} tone="sun" size={32} />
+            <div>
+              <p className="text-sm font-medium">Weekly allowance</p>
+              <p className="text-xs text-[var(--text-muted)] tabular">
+                {fmt(allowance?.amountMinor ?? 0, data.homeCurrency)} credited every week
+              </p>
+            </div>
             <InfoTip label="Allowance details">
-              Cap {fmt(allowance?.capMinor ?? 0, data.homeCurrency)} · Resets weekly
-              {allowance?.periodEnd ? ` (next: ${fmtDate(allowance.periodEnd)})` : ""}
+              Bannk tops up your balance with your allowance every 7 days, like a salary for using Bannk. It can grow or shrink with your activity. It never limits how much you can send.
             </InfoTip>
           </div>
-          <span className="text-xs font-semibold text-[var(--accent-ink)]">{remainingPct}% left</span>
+          <span className="text-xs font-semibold text-[var(--accent-ink)] text-right">
+            {allowance?.creditedThisPeriod ? (allowance.creditedKind === "opening" ? "Opening balance credited" : "Credited ✓") : "Pending"}
+          </span>
         </div>
-        <div className="h-2.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
+        <div className="h-2.5 rounded-full bg-[var(--surface-2)] overflow-hidden" aria-label="Progress to next credit">
           <div
             className="h-full rounded-full bg-gradient-to-r from-[#a6d81f] to-[var(--accent)] transition-all"
-            style={{ width: `${remainingPct}%` }}
+            style={{ width: `${cyclePct}%` }}
           />
         </div>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          Next credit {allowance?.nextCreditAt ? fmtDate(allowance.nextCreditAt) : "soon"}
+          {daysToNext ? ` · in ${daysToNext} day${daysToNext === 1 ? "" : "s"}` : ""}
+        </p>
       </div>
 
       {!data.hasPin && (

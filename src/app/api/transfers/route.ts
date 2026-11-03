@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: err.errors[0]?.message || "Invalid input" }, { status: 400 });
     }
     const message = err.message || "Transfer failed";
-    const known = ["Insufficient", "not found", "yourself", "Weekly allowance", "no longer open", "must be positive"];
+    const known = ["Insufficient", "not found", "yourself", "no longer open", "must be positive"];
     const status = known.some((k) => message.includes(k)) ? 400 : 500;
     if (status === 500) console.error("[transfers] failed:", message);
     return NextResponse.json({ error: status === 500 ? "Transfer failed" : message }, { status });

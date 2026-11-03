@@ -268,12 +268,7 @@ export async function executeTransfer(params: {
     currencyCode
   );
 
-  // Weekly spending limit
-  const { ensureCurrentAllowancePeriod } = await import("./allowance");
-  const period = await ensureCurrentAllowancePeriod(senderUserId);
-  if (period.usedMinor + amountMinor > period.capMinor) {
-    throw new Error("Weekly allowance limit exceeded");
-  }
+  // Weekly allowance is a recurring credit, not a spend cap — no limit check here.
 
   let createdId: string | null = null;
   const result = await prisma.$transaction(async (tx) => {
@@ -327,12 +322,6 @@ export async function executeTransfer(params: {
         },
       },
       include: { entries: true, transfer: true },
-    });
-
-    // Consume weekly allowance
-    await tx.allowancePeriod.update({
-      where: { id: period.id },
-      data: { usedMinor: { increment: amountMinor } },
     });
 
     if (paymentRequestId) {

@@ -18,7 +18,7 @@ Send, receive and request money with a @username · PWA · Built in Nigeria · P
 | Transaction PIN | 4-digit PIN (bcrypt-hashed only), set/change/remove in Profile → Security, required for every transfer; 5 wrong tries → 15 min lock |
 | Identity | Unique usernames, public profiles `/u/[username]`, QR identity |
 | Wallet | Multi-currency ready, balances, history |
-| Weekly allowance | 7-day periods, initial + weekly grants, spending cap on transfers |
+| Weekly allowance | 7-day periods, opening balance + recurring weekly credit (no spend cap) |
 | Transfers | P2P by username, idempotent, atomic ledger |
 | Exchange | **Receive payment** invoices (amount + description → QR + link), listed assets, market buy/sell, portfolio, P&amp;L |
 | Discover | Product/event listings, search, create listing |
@@ -74,7 +74,7 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
 | `APP_URL` | yes | `https://bannk.yourdomain.com` — used in emails and receipt share links |
 | `CRON_SECRET` | yes (for schedule) | `openssl rand -hex 24` |
 | `INITIAL_ALLOWANCE_MINOR` | no | `100005000` (₦1,000,050.00) — default if unset |
-| `WEEKLY_ALLOWANCE_MINOR` | no | `25000000` (₦250,000.00) — weekly grant **and** weekly send cap |
+| `WEEKLY_ALLOWANCE_MINOR` | no | `25000000` (₦250,000.00) — amount credited to each user every period (not a cap) |
 | `ALLOWANCE_PERIOD_DAYS` | no | `7` |
 | `ALERT_EMAILS` | no | `true` — credit/debit alert emails with receipt PNG; `false` disables |
 | `MAIL_PROVIDER` | yes (prod mail) | `smtp` or `resend` |
@@ -100,7 +100,7 @@ Changing the schema: `npx prisma migrate dev --name <change>` and commit the new
 
 - On WordKey verify: one-time **opening balance ₦1,000,050.00** (`initial-allowance:<userId>`, idempotent).
 - Weekly grant (`WEEKLY_ALLOWANCE_MINOR`) starts the period *after* signup, via cron or login.
-- Transfers are capped per period at `WEEKLY_ALLOWANCE_MINOR` (default **25000000 = ₦250,000.00**; shown in the app as a tooltip). Raise it if you want users to move more of the opening balance each week.
+- Transfers are limited only by available balance (and PIN). The weekly allowance is a recurring credit, not a cap.
 
 ## Receipts, sharing & statements
 

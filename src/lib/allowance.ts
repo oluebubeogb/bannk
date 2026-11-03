@@ -97,12 +97,21 @@ export async function grantWeeklyAllowanceIfDue(userId: string, currencyCode: st
 
 export async function getAllowanceStatus(userId: string) {
   const period = await ensureCurrentAllowancePeriod(userId);
+  const key = `weekly-allowance:${userId}:${period.periodStart.toISOString()}`;
+  const [weekly, opening] = await Promise.all([
+    prisma.journalTransaction.findUnique({ where: { idempotencyKey: key }, select: { createdAt: true } }),
+    prisma.journalTransaction.findUnique({ where: { idempotencyKey: `initial-allowance:${userId}` }, select: { createdAt: true } }),
+  ]);
+  const creditedAt = weekly?.createdAt ?? (opening && opening.createdAt >= period.periodStart ? opening.createdAt : null);
   return {
     periodStart: period.periodStart,
     periodEnd: period.periodEnd,
-    capMinor: period.capMinor,
-    usedMinor: period.usedMinor,
-    remainingMinor: Math.max(0, period.capMinor - period.usedMinor),
+    /** Amount Bannk credits each period (salary-like top-up). */
+    amountMinor: period.capMinor,
+    creditedThisPeriod: Boolean(creditedAt),
+    creditedAt,
+    creditedKind: weekly ? "weekly" : creditedAt ? "opening" : null,
+    nextCreditAt: new Date(period.periodEnd.getTime() + 1),
   };
 }
 
