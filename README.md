@@ -226,3 +226,10 @@ docs/PRODUCT_SPEC.md
 ```
 
 Bannk is in pilot in Nigeria. Funding (deposits) and withdrawals to bank accounts are not part of this build.
+
+## Dev Mode (Monnify-style sandbox)
+- Any signed-in user: `/dev-mode` → Enable → create/revoke API keys (secret shown once, hashed at rest), set webhook URL, see charges + API calls, docs.
+- Admin (`ADMIN_USERNAMES`): `/admin/dev-mode` → look up by username → create key for that account, revoke, view charges/transfers/API audit log. Blank = platform-wide.
+- API: `POST /api/v1/auth/login` (Basic apiKey:secret) · `POST /api/v1/merchant/transactions/init-transaction` · `POST /api/v1/merchant/cards/charge` · `POST /api/v1/merchant/bannk/charge` · `GET /api/v2/transactions/{ref}` · `GET /api/v2/merchant/transactions/query?paymentReference=` · hosted `/checkout/{ref}`.
+- Cards: Visa/Mastercard/Verve + Luhn + expiry/CVV/PIN validated in memory, never stored; always approved in sandbox; credits merchant via ledger with a receipt.
+- Swap to live: `PAYMENT_PROVIDER=monnify` + `MONNIFY_*` (src/lib/payments/).

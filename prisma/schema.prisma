@@ -23,6 +23,7 @@ model User {
   pinSetAt        DateTime?
   pinFailedCount  Int       @default(0)
   pinLockedUntil  DateTime?
+  devModeEnabledAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -46,6 +47,8 @@ model User {
   passwordResets         PasswordResetChallenge[]
   paymentRequests        PaymentRequest[]         @relation("PaymentRequestPayee")
   paymentRequestsPaid    PaymentRequest[]         @relation("PaymentRequestPayer")
+  devApiKeys             DevApiKey[]
+  devTransactions        DevTransaction[]
 }
 
 model Profile {
@@ -521,4 +524,73 @@ model IdempotencyKey {
 
   @@unique([actorId, key])
   @@index([expiresAt])
+}
+
+// ─── Dev Mode (Monnify-like sandbox) ───────────────────────
+
+model DevApiKey {
+  id            String    @id @default(cuid())
+  userId        String
+  label         String    @default("Default")
+  apiKey        String    @unique // public: MK_TEST_xxxx
+  secretHash    String // sha256 of the secret; secret shown once
+  secretHint    String // last 4 chars
+  contractCode  String    @unique
+  webhookUrl    String?
+  webhookSecret String // used to sign webhook payloads (HMAC-SHA512)
+  createdById   String?
+  revokedAt     DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions DevTransaction[]
+  logs         DevApiLog[]
+
+  @@index([userId])
+}
+
+model DevTransaction {
+  id                   String    @id @default(cuid())
+  merchantUserId       String
+  apiKeyId             String
+  transactionReference String    @unique
+  paymentReference     String
+  amountMinor          Int
+  currency             String    @default("NGN")
+  description          String?
+  customerName         String?
+  customerEmail        String?
+  redirectUrl          String?
+  status               String    @default("PENDING") // PENDING | PAID | FAILED | EXPIRED
+  paymentMethod        String? // CARD | BANNK_TRANSFER
+  cardBrand            String?
+  cardLast4            String?
+  payerUsername        String?
+  journalId            String?
+  webhookStatus        String?
+  paidAt               DateTime?
+  createdAt            DateTime  @default(now())
+
+  merchant User      @relation(fields: [merchantUserId], references: [id], onDelete: Cascade)
+  apiKey   DevApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@unique([apiKeyId, paymentReference])
+  @@index([merchantUserId, createdAt])
+}
+
+model DevApiLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  apiKeyId   String?
+  method     String
+  path       String
+  statusCode Int
+  ip         String?
+  summary    String?
+  createdAt  DateTime @default(now())
+
+  apiKey DevApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }

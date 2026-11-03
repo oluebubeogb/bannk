@@ -121,7 +121,7 @@ export async function getWalletBalance(walletId: string): Promise<number> {
  * System issuance account — auto-created on first use.
  * Uses a dedicated system user so no seed is required.
  */
-async function getOrCreateIssuanceAccount(currencyCode: string) {
+export async function getOrCreateIssuanceAccount(currencyCode: string) {
   const systemEmail = "system@bannk.internal";
   let systemUser = await prisma.user.findUnique({
     where: { email: systemEmail },

@@ -73,6 +73,7 @@ export default function ProfilePage() {
     { href: "/wallet#statement", label: "Statements & receipts", icon: ScrollText, tone: "peach" as const },
     { href: "/community", label: "Community", icon: Users, tone: "mint" as const },
     { href: "/business", label: "Business console", icon: Briefcase, tone: "sun" as const },
+    { href: "/dev-mode", label: "Dev Mode · API keys", icon: KeyRound, tone: "sky" as const },
     ...(data.isAdmin ? [{ href: "/admin", label: "Admin console", icon: ShieldHalf, tone: "ink" as const }] : []),
   ];
 

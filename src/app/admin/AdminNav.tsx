@@ -11,6 +11,7 @@ const items = [
   { href: "/admin/campaigns", label: "Campaigns" },
   { href: "/admin/challenges", label: "Challenges" },
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/dev-mode", label: "Dev Mode" },
   { href: "/admin/audit", label: "Audit log" },
 ];
 
