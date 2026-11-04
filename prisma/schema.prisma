@@ -86,7 +86,7 @@ model PaymentRequest {
   id            String    @id @default(cuid())
   token         String    @unique
   payeeUserId   String
-  amountMinor   Int
+  amountMinor   BigInt
   currency      String    @default("NGN")
   note          String?
   status        String    @default("open") // open | paid | cancelled
@@ -182,7 +182,7 @@ model JournalEntry {
   id              String @id @default(cuid())
   transactionId   String
   ledgerAccountId String
-  amountMinor     Int // always positive integer
+  amountMinor     BigInt // always positive integer
   direction       String // debit | credit
 
   transaction   JournalTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -294,7 +294,7 @@ model Trade {
   orderId    String   @unique
   priceMinor Int
   quantity   Int
-  totalMinor Int
+  totalMinor BigInt
   executedAt DateTime @default(now())
 
   order TradeOrder @relation(fields: [orderId], references: [id])
@@ -537,7 +537,8 @@ model DevApiKey {
   secretHint    String // last 4 chars
   contractCode  String    @unique
   webhookUrl    String?
-  webhookSecret String // used to sign webhook payloads (HMAC-SHA512)
+  webhookSecret String // legacy WH_ secret; sent as bannk-webhook-signature
+  signingSecretEnc String? // AES-GCM(secretKey); monnify-signature = HMAC-SHA512(body, secretKey) like real Monnify
   createdById   String?
   revokedAt     DateTime?
   lastUsedAt    DateTime?
@@ -556,7 +557,7 @@ model DevTransaction {
   apiKeyId             String
   transactionReference String    @unique
   paymentReference     String
-  amountMinor          Int
+  amountMinor          BigInt
   currency             String    @default("NGN")
   description          String?
   customerName         String?

@@ -28,7 +28,7 @@ export const GET = withAdmin(async (req) => {
     const profs = await prisma.profile.findMany({ where: { userId: { in: ids } } });
     const name = new Map(profs.map((p) => [p.userId, p.username]));
     return NextResponse.json({
-      scope: "all", stats: { activeKeys: keyCount, devModeUsers: enabledCount, paidCount: paid._count, paidMinor: paid._sum.amountMinor || 0 },
+      scope: "all", stats: { activeKeys: keyCount, devModeUsers: enabledCount, paidCount: paid._count, paidMinor: Number(paid._sum.amountMinor || 0) },
       transactions: txns.map(({ merchant, ...t }) => ({ ...t, merchantUsername: merchant.profile?.username })),
       logs: logs.map((l) => ({ ...l, username: l.userId ? name.get(l.userId) : null })),
     });

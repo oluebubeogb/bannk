@@ -66,7 +66,7 @@ export default function DevModePage() {
                   </div>
                   <div className="text-xs font-mono break-all">API key: {k.apiKey}</div>
                   <div className="text-xs font-mono">Secret: {k.secretHint} · Contract: {k.contractCode}</div>
-                  <div className="text-xs font-mono break-all">Webhook secret: {k.webhookSecret}</div>
+                  <div className="text-xs font-mono break-all">Legacy webhook secret (bannk-webhook-signature): {k.webhookSecret}</div>
                   <div className="text-xs text-[var(--text-muted)]">Created {fmtDate(k.createdAt, true)} · last used {k.lastUsedAt ? fmtDate(k.lastUsedAt, true) : "never"}</div>
                   {!k.revokedAt && (
                     <div className="flex gap-2">
@@ -135,7 +135,8 @@ GET ${base}/api/v2/merchant/transactions/query?paymentReference=order-1001
 → paymentStatus PENDING | PAID`}</Code>
               <p className="font-semibold">5 · Webhook</p>
               <Code>{`POST <your webhook URL>
-header monnify-signature: HMAC-SHA512(rawBody, webhookSecret)
+header monnify-signature: HMAC-SHA512(rawBody, your API secret key)  (same as Monnify)
+header bannk-webhook-signature: HMAC-SHA512(rawBody, WH_ webhook secret)
 { "eventType": "SUCCESSFUL_TRANSACTION", "eventData": { …transaction } }`}</Code>
               <p className="text-xs text-[var(--text-muted)]">Going live: set PAYMENT_PROVIDER=monnify + MONNIFY_* env vars; endpoint shapes stay the same.</p>
             </div>

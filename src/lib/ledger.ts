@@ -450,7 +450,7 @@ async function accountBalanceTx(
   });
   let bal = 0;
   for (const s of sums) {
-    const v = s._sum.amountMinor ?? 0;
+    const v = Number(s._sum.amountMinor ?? 0);
     bal += s.direction === "credit" ? v : -v;
   }
   return bal;

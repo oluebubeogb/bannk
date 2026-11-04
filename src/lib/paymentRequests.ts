@@ -1,6 +1,7 @@
 /** Receive payment / invoice helpers. The token is the authority; query params are human-readable decoration. */
 import { randomBytes } from "crypto";
-import type { PaymentRequest } from "@prisma/client";
+import type { PaymentRequest as PrismaPaymentRequest } from "@prisma/client";
+type PaymentRequest = Omit<PrismaPaymentRequest, "amountMinor"> & { amountMinor: number };
 import { appUrl } from "./mail";
 import { brandedQrPng } from "./qr";
 import { formatMinor } from "./money";

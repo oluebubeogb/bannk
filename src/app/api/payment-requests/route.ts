@@ -5,7 +5,7 @@ import { HttpError, handleError, requireUser, requireVerifiedUser } from "@/lib/
 import { newPaymentToken, serializePaymentRequest } from "@/lib/paymentRequests";
 
 const schema = z.object({
-  amountMinor: z.number().int().positive().max(100_000_000_000),
+  amountMinor: z.number().int().positive().max(10_000_000_000_000),
   note: z.string().trim().max(140).optional(),
   expiresInDays: z.number().int().min(1).max(30).default(7),
 });

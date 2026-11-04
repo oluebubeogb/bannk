@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 const schema = z.object({
   recipientUsername: z.string().min(2),
   currency: z.string().default("NGN"),
-  amountMinor: z.number().int().positive(),
+  amountMinor: z.number().int().positive().max(10_000_000_000_000),
   note: z.string().max(200).optional(),
   idempotencyKey: z.string().optional(),
   /** 4-digit transaction PIN — required for every transfer. */

@@ -4,8 +4,10 @@ import { HttpError } from "../api";
 import { executeTransfer, ensureWallet, getOrCreateIssuanceAccount, postJournal } from "../ledger";
 import { verifyUserPin } from "../pin";
 import { validateCard } from "./card";
+import { openSecret } from "../devmode";
 import type { Merchant, PaymentProvider, TxView } from "./types";
-import type { DevTransaction } from "@prisma/client";
+import type { DevTransaction as PrismaDevTransaction } from "@prisma/client";
+type DevTransaction = Omit<PrismaDevTransaction, "amountMinor"> & { amountMinor: number };
 
 const appUrl = () => (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 const major = (m: number) => (m / 100).toFixed(2);
@@ -51,10 +53,13 @@ function fireWebhook(id: string) {
       const t = await prisma.devTransaction.findUnique({ where: { id }, include: { apiKey: true } });
       if (!t?.apiKey.webhookUrl) return;
       const body = JSON.stringify({ eventType: "SUCCESSFUL_TRANSACTION", eventData: toView(t) });
-      const sig = createHmac("sha512", t.apiKey.webhookSecret).update(body).digest("hex");
+      // Monnify semantics: monnify-signature = HMAC-SHA512(rawBody, API secret key).
+      const sk = openSecret(t.apiKey.signingSecretEnc);
+      const sig = createHmac("sha512", sk || t.apiKey.webhookSecret).update(body).digest("hex");
+      const whSig = createHmac("sha512", t.apiKey.webhookSecret).update(body).digest("hex");
       let status = "failed";
       try {
-        const r = await fetch(t.apiKey.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "monnify-signature": sig }, body, signal: AbortSignal.timeout(10000) });
+        const r = await fetch(t.apiKey.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "monnify-signature": sig, "bannk-webhook-signature": whSig }, body, signal: AbortSignal.timeout(10000) });
         status = `http_${r.status}`;
       } catch { /* network */ }
       await prisma.devTransaction.update({ where: { id }, data: { webhookStatus: status } });

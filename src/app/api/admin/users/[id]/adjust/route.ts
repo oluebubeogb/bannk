@@ -8,7 +8,7 @@ import { adminAdjustBalance, ensureWallet, getWalletBalance } from "@/lib/ledger
 type Ctx = { params: Promise<{ id: string }> };
 const schema = z.object({
   direction: z.enum(["credit", "debit"]),
-  amountMinor: z.number().int().positive().max(1_000_000_000_00),
+  amountMinor: z.number().int().positive().max(10_000_000_000_000),
   reason: z.string().trim().min(3, "A reason is required").max(300),
   currency: z.string().trim().length(3).optional(),
   idempotencyKey: z.string().min(8).max(100),

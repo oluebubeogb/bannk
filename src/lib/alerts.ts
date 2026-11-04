@@ -50,7 +50,7 @@ export async function sendJournalAlerts(journalId: string) {
         _sum: { amountMinor: true },
       });
       let bal = 0;
-      for (const s of sums) bal += (s.direction === "credit" ? 1 : -1) * (s._sum.amountMinor ?? 0);
+      for (const s of sums) bal += (s.direction === "credit" ? 1 : -1) * Number(s._sum.amountMinor ?? 0);
 
       const kind = entry.direction === "credit" ? "credit" : "debit";
       const attachments: MailAttachment[] = [];
