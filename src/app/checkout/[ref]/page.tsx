@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useRef, useState } from "react";
-import { detectBrand } from "@/lib/payments/card";
+import { detectBrand, luhnOk } from "@/lib/payments/card";
 import { Button, Card, Field, Notice, Skeleton, api, fmt, inputCls, useApi } from "@/components/ui";
 
 const BRAND_UI: Record<string, { label: string; cls: string }> = {
@@ -10,6 +10,13 @@ const BRAND_UI: Record<string, { label: string; cls: string }> = {
   VERVE: { label: "Verve", cls: "bg-[#00425f] text-white" },
   AMEX: { label: "AMEX", cls: "bg-[#2e77bc] text-white" },
 };
+const BRAND_MAX: Record<string, number> = { MASTERCARD: 16, VISA: 19, VERVE: 19 };
+/** Number is "complete" when it hits the brand's max, or a valid shorter length (16) that passes Luhn. */
+function panComplete(d: string) {
+  const b = detectBrand(d); const max = BRAND_MAX[b]; if (!max) return false;
+  if (d.length >= max) return true;
+  return d.length === 16 && luhnOk(d);
+}
 function brandOf(n: string) { const d = n.replace(/\D/g, ""); return d.length ? detectBrand(d) : "UNKNOWN"; }
 function MastercardDots() { return <span className="inline-flex mr-1"><span className="w-2.5 h-2.5 rounded-full bg-[#eb001b]" /><span className="w-2.5 h-2.5 rounded-full bg-[#f79e1b] -ml-1 opacity-90" /></span>; }
 function BrandBadge({ brand }: { brand: string }) {
@@ -43,6 +50,7 @@ export default function Checkout({ params }: { params: Promise<{ ref: string }> 
   const [card, setCard] = useState({ number: "", expiry: "", cvv: "", pin: "" });
   const [pin, setPin] = useState("");
   const cvvRef = useRef<HTMLInputElement>(null);
+  const expRef = useRef<HTMLInputElement>(null);
   const pinRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -85,9 +93,9 @@ export default function Checkout({ params }: { params: Promise<{ ref: string }> 
                 </div>
                 {method === "CARD" ? (
                   <>
-                    <Field label="Card number"><div className="relative"><input inputMode="numeric" autoComplete="cc-number" className={inputCls + " font-mono pr-28"} value={card.number} onChange={(e) => setCard({ ...card, number: e.target.value.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ") })} placeholder="4084 0840 8408 4081" /><BrandBadge brand={brandOf(card.number)} /></div></Field>
+                    <Field label="Card number"><div className="relative"><input inputMode="numeric" autoComplete="cc-number" className={inputCls + " font-mono pr-28"} value={card.number} onChange={(e) => { let d = e.target.value.replace(/\D/g, "").slice(0, 19); const mx = BRAND_MAX[detectBrand(d)]; if (mx) d = d.slice(0, mx); const prev = card.number.replace(/\D/g, ""); setCard({ ...card, number: d.replace(/(\d{4})(?=\d)/g, "$1 ") }); if (d.length > prev.length && panComplete(d)) expRef.current?.focus(); }} placeholder="4084 0840 8408 4081" /><BrandBadge brand={brandOf(card.number)} /></div></Field>
                     <div className="grid grid-cols-3 gap-2">
-                      <Field label="Expiry"><input inputMode="numeric" autoComplete="cc-exp" maxLength={7} className={inputCls + " font-mono tracking-wider" + (card.expiry.length === 7 && !expiryValid(card.expiry) ? " border-red-500" : "")} placeholder="MM / YY" value={card.expiry} onKeyDown={(e) => { if (e.key === "Backspace" && card.expiry.endsWith(" / ")) { e.preventDefault(); setCard({ ...card, expiry: card.expiry.slice(0, 1) }); } }} onChange={(e) => { const v = formatExpiry(e.target.value); setCard({ ...card, expiry: v }); if (v.length === 7 && expiryValid(v)) cvvRef.current?.focus(); }} /></Field>
+                      <Field label="Expiry"><input ref={expRef} inputMode="numeric" autoComplete="cc-exp" maxLength={7} className={inputCls + " font-mono tracking-wider" + (card.expiry.length === 7 && !expiryValid(card.expiry) ? " border-red-500" : "")} placeholder="MM / YY" value={card.expiry} onKeyDown={(e) => { if (e.key === "Backspace" && card.expiry.endsWith(" / ")) { e.preventDefault(); setCard({ ...card, expiry: card.expiry.slice(0, 1) }); } }} onChange={(e) => { const v = formatExpiry(e.target.value); setCard({ ...card, expiry: v }); if (v.length === 7 && expiryValid(v)) cvvRef.current?.focus(); }} /></Field>
                       <Field label="CVV"><input ref={cvvRef} inputMode="numeric" autoComplete="cc-csc" pattern="[0-9]*" maxLength={3} type="password" placeholder="•••" className={inputCls + " font-mono tracking-widest"} value={card.cvv} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 3); setCard({ ...card, cvv: v }); if (v.length === 3) pinRef.current?.focus(); }} /></Field>
                       <Field label="Card PIN"><input ref={pinRef} inputMode="numeric" pattern="[0-9]*" maxLength={4} type="password" placeholder="••••" className={inputCls + " font-mono tracking-widest"} value={card.pin} onChange={(e) => setCard({ ...card, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })} /></Field>
                     </div>
