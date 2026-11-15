@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, History, QrCode, Users, ArrowLeftRight, Compass, CalendarClock, ChevronRight, ShieldCheck } from "lucide-react";
+import { Send, QrCode, Users, ArrowLeftRight, Compass, CalendarClock, ChevronRight, ShieldCheck, Plus } from "lucide-react";
 import { fmt, fmtDate } from "@/components/ui";
 import { EyeToggle, IconCircle, InfoTip, Logo, maskMoney, useBalanceVisible } from "@/components/kit";
 
@@ -48,9 +48,9 @@ export default function HomePage() {
   const name = data.displayName || data.username;
 
   const actions = [
-    { href: "/send", label: "Send", icon: Send, tone: "lime" as const },
-    { href: "/exchange#receive", label: "Receive", icon: QrCode, tone: "sky" as const },
-    { href: "/wallet", label: "History", icon: History, tone: "peach" as const },
+    { href: "/wallet#fund", label: "Fund", icon: Plus, tone: "lime" as const },
+    { href: "/send", label: "Send", icon: Send, tone: "sky" as const },
+    { href: "/exchange#receive", label: "Receive", icon: QrCode, tone: "peach" as const },
     { href: "/exchange", label: "Exchange", icon: ArrowLeftRight, tone: "lilac" as const },
   ];
 

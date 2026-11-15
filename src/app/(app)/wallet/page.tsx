@@ -3,19 +3,28 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight, Send, QrCode, WalletCards, Receipt } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Send, QrCode, WalletCards, Receipt, Plus } from "lucide-react";
 import { StatementPanel } from "@/components/StatementPanel";
-import { fmt } from "@/components/ui";
-import { EyeToggle, IconCircle, maskMoney, useBalanceVisible } from "@/components/kit";
+import { CardForm, splitExpiry, type CardFormValue } from "@/components/CardForm";
+import { Button, Field, Notice, api, fmt, inputCls } from "@/components/ui";
+import { EyeToggle, IconCircle, Modal, maskMoney, useBalanceVisible } from "@/components/kit";
+
+const emptyCard: CardFormValue = { number: "", expiry: "", cvv: "", pin: "" };
 
 export default function WalletPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { visible, toggle } = useBalanceVisible();
+  const [fundOpen, setFundOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [card, setCard] = useState<CardFormValue>(emptyCard);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/wallets")
+  function load() {
+    return fetch("/api/wallets")
       .then((r) => {
         if (r.status === 401) {
           router.replace("/login");
@@ -25,9 +34,50 @@ export default function WalletPage() {
       })
       .then((d) => {
         if (d) setData(d);
-      })
-      .finally(() => setLoading(false));
+      });
+  }
+
+  useEffect(() => {
+    load().finally(() => setLoading(false));
   }, [router]);
+
+  useEffect(() => {
+    const openIfHash = () => { if (location.hash === "#fund") setFundOpen(true); };
+    openIfHash();
+    window.addEventListener("hashchange", openIfHash);
+    return () => window.removeEventListener("hashchange", openIfHash);
+  }, []);
+
+  function closeFund() {
+    setFundOpen(false);
+    setErr(null);
+    if (location.hash === "#fund") history.replaceState(null, "", location.pathname);
+  }
+
+  async function fund(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setErr(null); setOk(null);
+    try {
+      const { expiryMonth, expiryYear } = splitExpiry(card.expiry);
+      const r = await api<any>("/api/wallets/fund", {
+        method: "POST",
+        json: {
+          amount: Number(amount),
+          card: { number: card.number, expiryMonth, expiryYear, cvv: card.cvv, pin: card.pin },
+        },
+      });
+      setCard(emptyCard);
+      setAmount("");
+      setOk("Wallet funded.");
+      await load();
+      closeFund();
+      if (r.transactionId) router.push(`/receipt/${r.transactionId}`);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -54,6 +104,8 @@ export default function WalletPage() {
         <h1 className="text-xl font-bold">Wallet</h1>
       </div>
 
+      {ok && <Notice kind="success">{ok}</Notice>}
+
       {wallet && (
         <div className="hero-gradient relative overflow-hidden rounded-3xl p-5 mb-6 shadow-[0_18px_40px_-18px_rgba(79,122,6,.55)]">
           <div className="flex items-center justify-between">
@@ -64,6 +116,9 @@ export default function WalletPage() {
             {maskMoney(wallet.balanceMinor, wallet.currencyCode, visible)}
           </p>
           <div className="flex gap-2">
+            <button type="button" onClick={() => setFundOpen(true)} className="press flex-1 h-10 rounded-xl bg-white/70 hover:bg-white text-sm font-semibold inline-flex items-center justify-center gap-1.5">
+              <Plus size={15} /> Fund
+            </button>
             <Link href="/send" className="press flex-1 h-10 rounded-xl bg-[var(--text)] text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5">
               <Send size={15} /> Send
             </Link>
@@ -104,6 +159,19 @@ export default function WalletPage() {
           );
         })}
       </div>
+
+      <Modal open={fundOpen} onClose={closeFund} title="Fund from card">
+        <form onSubmit={fund} className="space-y-3" autoComplete="off">
+          <h2 className="text-lg font-bold pr-8">Fund from card</h2>
+          <p className="text-xs text-[var(--text-muted)]">Adds sandbox money to your {wallet?.currencyCode || "NGN"} wallet. Email must be verified.</p>
+          <Field label={`Amount (${wallet?.currencyCode || "NGN"})`}>
+            <input inputMode="decimal" className={inputCls + " font-mono"} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))} placeholder="5000" required />
+          </Field>
+          <CardForm value={card} onChange={setCard} />
+          {err && <Notice kind="error">{err}</Notice>}
+          <Button variant="primary" className="w-full" disabled={busy}>{busy ? "Funding…" : "Fund wallet"}</Button>
+        </form>
+      </Modal>
     </div>
   );
 }

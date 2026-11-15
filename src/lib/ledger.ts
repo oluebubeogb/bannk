@@ -37,7 +37,8 @@ export type JournalType =
   | "reward"
   | "trade"
   | "adjustment"
-  | "issuance";
+  | "issuance"
+  | "card_funding";
 
 interface EntryInput {
   ledgerAccountId: string;
@@ -621,3 +622,27 @@ export async function completeChallengeWithReward(params: {
     throw err;
   }
 }
+
+/** Credit a user's available wallet from sandbox card funding (issuance debit). */
+export async function fundWalletFromCard(params: {
+  userId: string;
+  currencyCode: string;
+  amountMinor: number;
+  brand: string;
+  last4: string;
+  idempotencyKey: string;
+}) {
+  const { userId, currencyCode, amountMinor, brand, last4, idempotencyKey } = params;
+  if (amountMinor <= 0) throw new Error("Amount must be positive");
+  const { availableAccount } = await ensureWallet(userId, currencyCode);
+  const issuance = await getOrCreateIssuanceAccount(currencyCode);
+  return postJournal(
+    "card_funding",
+    [
+      { ledgerAccountId: issuance.id, amountMinor, direction: "debit" },
+      { ledgerAccountId: availableAccount.id, amountMinor, direction: "credit" },
+    ],
+    { idempotencyKey, note: `Card funding · ${brand} •••• ${last4}` }
+  );
+}
+

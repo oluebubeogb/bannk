@@ -526,14 +526,14 @@ model IdempotencyKey {
   @@index([expiresAt])
 }
 
-// ─── Dev Mode (Monnify-like sandbox) ───────────────────────
+// ─── Dev Mode (Monnify- + Paystack-like sandbox) ──────────
 
 model DevApiKey {
   id            String    @id @default(cuid())
   userId        String
   label         String    @default("Default")
-  apiKey        String    @unique // public: MK_TEST_xxxx
-  secretHash    String // sha256 of the secret; secret shown once
+  apiKey        String    @unique // public: pk_test_xxxx (new) or MK_TEST_xxxx (legacy)
+  secretHash    String    @unique // sha256 of the secret; secret shown once
   secretHint    String // last 4 chars
   contractCode  String    @unique
   webhookUrl    String?
@@ -570,6 +570,9 @@ model DevTransaction {
   payerUsername        String?
   journalId            String?
   webhookStatus        String?
+  accessCode           String?   @unique
+  apiFlavor            String    @default("monnify") // monnify | paystack
+  lastFailureCode      String?
   paidAt               DateTime?
   createdAt            DateTime  @default(now())
 

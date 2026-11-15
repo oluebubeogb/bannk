@@ -72,6 +72,8 @@ function typeLabel(type: string, direction: string, isTransfer: boolean) {
   if (type === "trade") return direction === "credit" ? "Exchange sell" : "Exchange buy";
   if (type === "reward") return "Reward";
   if (type === "adjustment") return "Adjustment";
+  if (type === "card_funding") return "Card funding";
+  if (type === "issuance") return "Card payment";
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 

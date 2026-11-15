@@ -28,7 +28,7 @@ export default function DevModePage() {
     <div className="px-5 pt-6 space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Dev Mode</h1>
-        <p className="text-sm text-[var(--text-muted)]">Monnify-style sandbox. Test payments land as real Bannk balance — with receipts.</p>
+        <p className="text-sm text-[var(--text-muted)]">Monnify- and Paystack-compatible sandbox. Test payments land as real Bannk balance — with receipts.</p>
       </div>
       {error && <Notice kind="error">{error}</Notice>}
       {msg && <Notice kind="error">{msg}</Notice>}
@@ -106,11 +106,14 @@ export default function DevModePage() {
 
           {tab === "docs" && (
             <div className="space-y-3 text-sm">
-              <p>Same shapes as Monnify. Amounts are in naira (major units). All responses use <code>{"{requestSuccessful, responseMessage, responseCode, responseBody}"}</code>.</p>
+              <p>New keys are Paystack-shaped <code>pk_test_</code> / <code>sk_test_</code>. Existing <code>MK_TEST_</code> / <code>SK_TEST_</code> keys still work on the Monnify API. Sandbox cards: any 4-digit PIN succeeds, except <code>0000</code> (insufficient) and <code>1111</code> (wrong details). A past expiry is declined. Card data is never stored. Declined charges stay pending so the payer can retry.</p>
+              <p className="font-semibold">Monnify API</p>
+              <p>Amounts are in naira (major units). Responses use <code>{"{requestSuccessful, responseMessage, responseCode, responseBody}"}</code>. Auth: Basic <code>public:secret</code> (or login for a Bearer JWT).</p>
               <p className="font-semibold">1 · Authenticate</p>
-              <Code>{`curl -X POST ${base}/api/v1/auth/login \\
-  -u "MK_TEST_xxx:SK_TEST_xxx"
-→ responseBody.accessToken (1h) — send as Authorization: Bearer <token>`}</Code>
+              <Code>{`curl -X POST ${base}/api/v1/auth/login \
+  -u "pk_test_xxx:sk_test_xxx"
+→ responseBody.accessToken (1h) — send as Authorization: Bearer <token>
+  (legacy MK_TEST_ / SK_TEST_ keys still work)`}</Code>
               <p className="font-semibold">2 · Initiate a charge</p>
               <Code>{`POST ${base}/api/v1/merchant/transactions/init-transaction
 { "amount": 2500, "paymentReference": "order-1001",
@@ -123,8 +126,8 @@ export default function DevModePage() {
 { "transactionReference": "MNFY|BNK|…",
   "card": { "number": "4084084084084081", "expiryMonth": "12",
             "expiryYear": "2030", "cvv": "123", "pin": "1234" } }
-→ status SUCCESS. Sandbox: any Luhn-valid card is approved, no limit.
-Card number, CVV and PIN are never stored.`}</Code>
+→ status SUCCESS. PIN 0000 = Insufficient balance, 1111 = Wrong card details.
+Past expiry = Card has expired. Other valid PINs are approved.`}</Code>
               <p className="font-semibold">3b · In-app Bannk transfer</p>
               <Code>{`POST ${base}/api/v1/merchant/bannk/charge
 { "transactionReference": "MNFY|BNK|…", "payerUsername": "tolu", "pin": "4831" }
@@ -133,12 +136,40 @@ Card number, CVV and PIN are never stored.`}</Code>
               <Code>{`GET ${base}/api/v2/transactions/{urlencoded transactionReference}
 GET ${base}/api/v2/merchant/transactions/query?paymentReference=order-1001
 → paymentStatus PENDING | PAID`}</Code>
-              <p className="font-semibold">5 · Webhook</p>
+              <p className="font-semibold">5 · Webhook (Monnify-initiated payments)</p>
               <Code>{`POST <your webhook URL>
-header monnify-signature: HMAC-SHA512(rawBody, your API secret key)  (same as Monnify)
+header monnify-signature: HMAC-SHA512(rawBody, your API secret key)
 header bannk-webhook-signature: HMAC-SHA512(rawBody, WH_ webhook secret)
 { "eventType": "SUCCESSFUL_TRANSACTION", "eventData": { …transaction } }`}</Code>
-              <p className="text-xs text-[var(--text-muted)]">Going live: set PAYMENT_PROVIDER=monnify + MONNIFY_* env vars; endpoint shapes stay the same.</p>
+              <p className="font-semibold pt-2">Paystack API (drop-in)</p>
+              <p>Point your Paystack SDK <code>baseURL</code> at <code>{base || "APP_URL"}</code> (official libraries default to <code>https://api.paystack.co</code>). Amounts are in kobo. Auth: <code>Authorization: Bearer sk_test_…</code>. Responses use <code>{"{status, message, data}"}</code>.</p>
+              <Code>{`POST ${base}/transaction/initialize
+Authorization: Bearer sk_test_xxx
+{ "email": "ada@x.com", "amount": 250000, "reference": "order-1001",
+  "callback_url": "https://shop.test/done", "currency": "NGN" }
+→ data.authorization_url, data.access_code, data.reference
+
+GET ${base}/transaction/verify/order-1001
+→ data.status success | abandoned, amount in kobo
+
+POST ${base}/charge
+{ "email": "ada@x.com", "amount": 250000,
+  "card": { "number": "4084084084084081", "cvv": "123",
+            "expiry_month": "12", "expiry_year": "2030" }, "pin": "1234" }
+→ data.status success. No PIN → data.status send_pin, then
+POST ${base}/charge/submit_pin { "reference": "…", "pin": "1234" }
+PIN 0000 = Insufficient Funds, 1111 = Invalid card details,
+past expiry = Expired Card.
+
+Webhook (Paystack-initiated payments):
+header x-paystack-signature: HMAC-SHA512(rawBody, secret key)
+{ "event": "charge.success", "data": { …verify body } }
+
+Inline checkout — replace js.paystack.co with Bannk:
+<script src="${base}/v1/inline.js"></script>  or  ${base}/v2/inline.js
+PaystackPop.setup({ key: "pk_test_…", email, amount /* kobo */, callback })
+  .openIframe();`}</Code>
+              <p className="text-xs text-[var(--text-muted)]">Going live with real Monnify: set PAYMENT_PROVIDER=monnify + MONNIFY_* env vars; Monnify endpoint shapes stay the same. For production Paystack, point the site back at api.paystack.co and use live keys.</p>
             </div>
           )}
         </>

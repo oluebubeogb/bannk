@@ -17,7 +17,7 @@ Send, receive and request money with a @username · PWA · Built in Nigeria · P
 | Auth | Register, Nigerian-flavoured WordKey verify (case-insensitive), login, logout, sessions, **forgot / reset password** via emailed WordKey, eye toggles on every password field |
 | Transaction PIN | 4-digit PIN (bcrypt-hashed only), set/change/remove in Profile → Security, required for every transfer; 5 wrong tries → 15 min lock |
 | Identity | Unique usernames, public profiles `/u/[username]`, QR identity |
-| Wallet | Multi-currency ready, balances, history |
+| Wallet | Multi-currency ready, balances, history, **fund from card** (sandbox) |
 | Weekly allowance | 7-day periods, opening balance + recurring weekly credit (no spend cap) |
 | Transfers | P2P by username, idempotent, atomic ledger |
 | Exchange | **Receive payment** invoices (amount + description → QR + link), listed assets, market buy/sell, portfolio, P&amp;L |
@@ -39,7 +39,7 @@ Send, receive and request money with a @username · PWA · Built in Nigeria · P
 | Moderation | Report a listing/user/campaign (`POST /api/reports`), reviewed in `/admin/reports` |
 | Theme | Light fintech UI (warm neutrals, charcoal ink, lime accent) |
 
-**Not in this build:** Redis-backed queues/rate limits, bank deposit/withdrawal rails, self-service ad billing, subdomains, chat, microservices.
+**Not in this build:** Redis-backed queues/rate limits, real bank deposit/withdrawal rails, self-service ad billing, subdomains, chat, microservices. Sandbox “fund from card” (no real money) is included.
 
 ## Prerequisites
 
@@ -220,16 +220,18 @@ prisma/
   migrations/20261027000000_init/                       # initial migration
   migrations/20261027220000_community_admin_business/   # challenges, groups, business review fields
   migrations/20261028000000_pin_reset_payreq/           # transaction PIN, password reset challenges, payment requests
+  migrations/20261115190000_paystack_and_card_funding/  # Paystack access codes, unique secret hash
 assets/fonts/         # Inter for PDFs
 Dockerfile · docker-entrypoint.sh · .dockerignore
 docs/PRODUCT_SPEC.md
 ```
 
-Bannk is in pilot in Nigeria. Funding (deposits) and withdrawals to bank accounts are not part of this build.
+Bannk is in pilot in Nigeria. Real bank deposits and withdrawals are not part of this build. Signed-in, email-verified users can **fund their wallet from a sandbox card** (Wallet or Home → Fund): any 4-digit PIN succeeds except `0000` (insufficient balance) and `1111` (wrong card details); a past expiry returns “Card has expired”. Home currency only, ₦10,000,000 cap per request. No real money moves.
 
-## Dev Mode (Monnify-style sandbox)
-- Any signed-in user: `/dev-mode` → Enable → create/revoke API keys (secret shown once, hashed at rest), set webhook URL, see charges + API calls, docs. Webhooks: `monnify-signature` = HMAC-SHA512(rawBody, API secret key) — merchants verify with the same `MONNIFY_SECRET_KEY` they log in with; `bannk-webhook-signature` uses the legacy WH_ secret. Amount columns are BIGINT (no NGN 21.47M cap).
+## Dev Mode (Monnify + Paystack sandbox)
+- Any signed-in user: `/dev-mode` → Enable → create/revoke API keys (secret shown once, hashed at rest), set webhook URL, see charges + API calls, docs. **New keys** are `pk_test_` / `sk_test_`. Legacy `MK_TEST_` / `SK_TEST_` keys still work on the Monnify API. Amount columns are BIGINT (no NGN 21.47M cap).
 - Admin (`ADMIN_USERNAMES`): `/admin/dev-mode` → look up by username → create key for that account, revoke, view charges/transfers/API audit log. Blank = platform-wide.
-- API: `POST /api/v1/auth/login` (Basic apiKey:secret) · `POST /api/v1/merchant/transactions/init-transaction` · `POST /api/v1/merchant/cards/charge` · `POST /api/v1/merchant/bannk/charge` · `GET /api/v2/transactions/{ref}` · `GET /api/v2/merchant/transactions/query?paymentReference=` · hosted `/checkout/{ref}`.
-- Cards: Visa/Mastercard/Verve + Luhn + expiry/CVV/PIN validated in memory, never stored; always approved in sandbox; credits merchant via ledger with a receipt.
-- Swap to live: `PAYMENT_PROVIDER=monnify` + `MONNIFY_*` (src/lib/payments/).
+- Monnify API (amounts in naira): `POST /api/v1/auth/login` (Basic public:secret) · `POST /api/v1/merchant/transactions/init-transaction` · `POST /api/v1/merchant/cards/charge` · `POST /api/v1/merchant/bannk/charge` · `GET /api/v2/transactions/{ref}` · `GET /api/v2/merchant/transactions/query?paymentReference=` · hosted `/checkout/{ref}`. Webhooks: `monnify-signature` = HMAC-SHA512(rawBody, API secret key); `bannk-webhook-signature` uses the legacy WH_ secret.
+- Paystack drop-in (amounts in kobo): set your Paystack SDK **base URL** to `APP_URL` (official SDKs default to `https://api.paystack.co`). `Authorization: Bearer sk_test_…`. `POST /transaction/initialize` · `GET /transaction/verify/:reference` · `POST /charge` · `POST /charge/submit_pin` (optional; pending card is held in memory briefly, never written to the DB). The same paths are also aliased under `/api/transaction/…` and `/api/charge`. Inline JS: `${APP_URL}/v1/inline.js` or `/v2/inline.js` (PaystackPop shims over hosted checkout). Paystack-initiated payments send `x-paystack-signature` = HMAC-SHA512(rawBody, secret key) and `{ event: "charge.success", data }`.
+- Cards (in-app fund and both gateways): Visa/Mastercard/Verve + Luhn + expiry/CVV/PIN validated in memory, never stored. Any valid PIN is approved except `0000` / `1111`; past expiry is declined. Declined merchant transactions stay `PENDING` and can be retried. Success credits the merchant via the ledger with a receipt.
+- Swap Monnify routes to live: `PAYMENT_PROVIDER=monnify` + `MONNIFY_*` (`src/lib/payments/`). For production Paystack, point the site back at `api.paystack.co` and use live keys.

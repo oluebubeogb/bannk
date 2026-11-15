@@ -14,13 +14,13 @@ export function handleError(err: unknown) {
       issues: err.errors,
     });
   }
-  if (err instanceof HttpError) return jsonError(err.message, err.status);
+  if (err instanceof HttpError) return jsonError(err.message, err.status, err.code ? { code: err.code } : undefined);
   console.error(err);
   return jsonError("Something went wrong", 500);
 }
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
   }
 }

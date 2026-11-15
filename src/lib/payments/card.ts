@@ -1,6 +1,29 @@
 /** Card validation for the sandbox. PAN/PIN/CVV are validated in memory only — never stored or logged. */
 export type CardBrand = "VISA" | "MASTERCARD" | "VERVE" | "AMEX" | "UNKNOWN";
 
+export type CardErrorCode = "INVALID_CARD" | "EXPIRED_CARD" | "INSUFFICIENT_FUNDS" | "WRONG_DETAILS";
+export type CardMessageFlavor = "bannk" | "paystack";
+
+export class CardError extends Error {
+  constructor(public code: CardErrorCode, message: string) {
+    super(message);
+    this.name = "CardError";
+  }
+}
+
+export const CARD_MESSAGES: Record<CardMessageFlavor, Record<Exclude<CardErrorCode, "INVALID_CARD">, string>> = {
+  bannk: {
+    EXPIRED_CARD: "Card has expired",
+    INSUFFICIENT_FUNDS: "Insufficient balance",
+    WRONG_DETAILS: "Wrong card details",
+  },
+  paystack: {
+    EXPIRED_CARD: "Expired Card",
+    INSUFFICIENT_FUNDS: "Insufficient Funds",
+    WRONG_DETAILS: "Invalid card details",
+  },
+};
+
 export function luhnOk(pan: string) {
   let sum = 0, alt = false;
   for (let i = pan.length - 1; i >= 0; i--) {
@@ -26,7 +49,7 @@ export function detectBrand(pan: string): CardBrand {
 export type CardInput = { number: string; expiryMonth: string | number; expiryYear: string | number; cvv: string; pin?: string };
 
 /** Throws Error(message) on invalid input. Returns safe metadata only. */
-export function validateCard(c: CardInput): { brand: CardBrand; last4: string } {
+export function validateCard(c: CardInput, opts?: { pinRequired?: boolean }): { brand: CardBrand; last4: string } {
   const pan = String(c.number || "").replace(/[\s-]/g, "");
   if (!/^\d{12,19}$/.test(pan)) throw new Error("Invalid card number");
   if (!luhnOk(pan)) throw new Error("Invalid card number (checksum failed)");
@@ -42,6 +65,26 @@ export function validateCard(c: CardInput): { brand: CardBrand; last4: string } 
   const now = new Date();
   if (yy < now.getFullYear() || (yy === now.getFullYear() && mm < now.getMonth() + 1)) throw new Error("Card has expired");
   if (!/^\d{3}$/.test(String(c.cvv || ""))) throw new Error("Invalid CVV");
-  if (!/^\d{4}$/.test(String(c.pin || ""))) throw new Error("Card PIN must be 4 digits");
+  if (opts?.pinRequired !== false && !/^\d{4}$/.test(String(c.pin || ""))) throw new Error("Card PIN must be 4 digits");
   return { brand, last4: pan.slice(-4) };
+}
+
+/**
+ * Full sandbox card check: format + expiry + PIN outcomes.
+ * PIN 0000 → insufficient funds; PIN 1111 → wrong details; any other valid 4-digit PIN succeeds.
+ * Never persists or logs PAN/PIN/CVV.
+ */
+export function evaluateSandboxCard(c: CardInput, flavor: CardMessageFlavor = "bannk"): { brand: CardBrand; last4: string } {
+  let meta: { brand: CardBrand; last4: string };
+  try {
+    meta = validateCard(c, { pinRequired: true });
+  } catch (e: any) {
+    const msg = String(e?.message || "Invalid card");
+    if (msg === "Card has expired") throw new CardError("EXPIRED_CARD", CARD_MESSAGES[flavor].EXPIRED_CARD);
+    throw new CardError("INVALID_CARD", msg);
+  }
+  const pin = String(c.pin || "");
+  if (pin === "0000") throw new CardError("INSUFFICIENT_FUNDS", CARD_MESSAGES[flavor].INSUFFICIENT_FUNDS);
+  if (pin === "1111") throw new CardError("WRONG_DETAILS", CARD_MESSAGES[flavor].WRONG_DETAILS);
+  return meta;
 }

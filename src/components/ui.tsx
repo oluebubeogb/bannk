@@ -31,10 +31,15 @@ export async function api<T = any>(url: string, init?: RequestInit & { json?: un
     /* empty */
   }
   if (!res.ok) {
-    const err = new Error(typeof data?.error === "string" ? data.error : `Request failed (${res.status})`) as Error & {
-      status?: number;
-    };
+    const message =
+      (typeof data?.error === "string" && data.error) ||
+      (typeof data?.responseMessage === "string" && data.responseMessage) ||
+      (typeof data?.message === "string" && data.message) ||
+      `Request failed (${res.status})`;
+    const err = new Error(message) as Error & { status?: number; code?: string };
     err.status = res.status;
+    if (typeof data?.code === "string") err.code = data.code;
+    else if (typeof data?.responseCode === "string") err.code = data.responseCode;
     throw err;
   }
   return data as T;

@@ -8,6 +8,7 @@ export type InitInput = {
   customerName?: string;
   customerEmail?: string;
   redirectUrl?: string;
+  apiFlavor?: "monnify" | "paystack";
 };
 
 export type TxView = {
@@ -38,7 +39,7 @@ export type Merchant = { apiKeyId: string; userId: string };
 export interface PaymentProvider {
   name: string;
   initTransaction(m: Merchant, input: InitInput): Promise<TxView>;
-  chargeCard(m: Merchant | null, transactionReference: string, card: CardInput): Promise<TxView>;
+  chargeCard(m: Merchant | null, transactionReference: string, card: CardInput, opts?: { messageFlavor?: "bannk" | "paystack" }): Promise<TxView>;
   chargeBannk(m: Merchant | null, transactionReference: string, payer: { userId?: string; username?: string; pin: string }): Promise<TxView>;
   getByTransactionReference(m: Merchant | null, ref: string): Promise<TxView | null>;
   getByPaymentReference(m: Merchant, paymentReference: string): Promise<TxView | null>;
