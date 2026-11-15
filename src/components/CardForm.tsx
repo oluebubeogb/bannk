@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { detectBrand, luhnOk } from "@/lib/payments/card";
 import { Field, inputCls } from "@/components/ui";
+import { InfoTip } from "@/components/kit";
 
 const BRAND_UI: Record<string, { label: string; cls: string }> = {
   VISA: { label: "VISA", cls: "bg-[#1a1f71] text-white italic" },
@@ -67,9 +68,8 @@ export function CardForm({ value, onChange }: { value: CardFormValue; onChange: 
       <div className="grid grid-cols-3 gap-2">
         <Field label="Expiry"><input ref={expRef} inputMode="numeric" autoComplete="cc-exp" maxLength={7} className={inputCls + " font-mono tracking-wider" + (card.expiry.length === 7 && !expiryValid(card.expiry) ? " border-red-500" : "")} placeholder="MM / YY" value={card.expiry} onKeyDown={(e) => { if (e.key === "Backspace" && card.expiry.endsWith(" / ")) { e.preventDefault(); setCard({ ...card, expiry: card.expiry.slice(0, 1) }); } }} onChange={(e) => { const v = formatExpiry(e.target.value); setCard({ ...card, expiry: v }); if (v.length === 7 && expiryValid(v)) cvvRef.current?.focus(); }} /></Field>
         <Field label="CVV"><input ref={cvvRef} inputMode="numeric" autoComplete="cc-csc" pattern="[0-9]*" maxLength={3} type="password" placeholder="•••" className={inputCls + " font-mono tracking-widest"} value={card.cvv} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 3); setCard({ ...card, cvv: v }); if (v.length === 3) pinRef.current?.focus(); }} /></Field>
-        <Field label="Card PIN"><input ref={pinRef} inputMode="numeric" pattern="[0-9]*" maxLength={4} type="password" placeholder="••••" className={inputCls + " font-mono tracking-widest"} value={card.pin} onChange={(e) => setCard({ ...card, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })} /></Field>
+        <Field label={<>Card PIN<InfoTip label="Sandbox card rules" align="left" className="-my-1">{SANDBOX_CARD_HINT}</InfoTip></>}><input ref={pinRef} inputMode="numeric" pattern="[0-9]*" maxLength={4} type="password" placeholder="••••" className={inputCls + " font-mono tracking-widest"} value={card.pin} onChange={(e) => setCard({ ...card, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })} /></Field>
       </div>
-      <p className="text-[11px] text-[var(--text-muted)]">{SANDBOX_CARD_HINT}</p>
     </>
   );
 }

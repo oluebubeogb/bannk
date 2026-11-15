@@ -34,7 +34,13 @@ type TxLike = {
   cardBrand?: string | null;
   accessCode?: string | null;
   description?: string | null;
+  metadata?: string | null;
 };
+
+function parseMeta(v?: string | null): unknown {
+  if (!v) return {};
+  try { return JSON.parse(v); } catch { return v; }
+}
 
 export function toPaystackTransaction(t: TxLike) {
   const amount = Number(t.amountMinor);
@@ -59,7 +65,7 @@ export function toPaystackTransaction(t: TxLike) {
     created_at: t.createdAt.toISOString(),
     channel: t.paymentMethod === "BANNK_TRANSFER" ? "bannk" : "card",
     ip_address: null,
-    metadata: {},
+    metadata: parseMeta(t.metadata),
     fees: 0,
     customer: {
       email: t.customerEmail || "",

@@ -129,10 +129,10 @@ export const inputCls =
 export const textareaCls =
   "w-full min-h-[80px] px-3 py-2 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm focus:bg-[var(--surface)]";
 
-export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+export function Field({ label, children, hint }: { label: React.ReactNode; children: React.ReactNode; hint?: string }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-[var(--text-muted)] mb-1">{label}</span>
+      <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-muted)] mb-1">{label}</span>
       {children}
       {hint && <span className="block text-[11px] text-[var(--text-muted)] mt-1">{hint}</span>}
     </label>

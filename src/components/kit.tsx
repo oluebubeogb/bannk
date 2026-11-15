@@ -40,7 +40,7 @@ export function PasswordInput({
 /* ------------------------------------------------------------- Tooltip */
 
 /** Info tooltip that opens on hover (desktop) and on tap (mobile); closes on outside tap / Escape. */
-export function InfoTip({ children, label = "More info", className = "" }: { children: React.ReactNode; label?: string; className?: string }) {
+export function InfoTip({ children, label = "More info", className = "", align = "right" }: { children: React.ReactNode; label?: string; className?: string; align?: "left" | "right" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const id = useId();
@@ -78,7 +78,7 @@ export function InfoTip({ children, label = "More info", className = "" }: { chi
         <span
           id={id}
           role="tooltip"
-          className="pop-in absolute right-0 top-full mt-1.5 z-40 w-max max-w-[240px] rounded-xl bg-[var(--text)] text-white text-xs leading-relaxed px-3 py-2 shadow-lg"
+          className={`pop-in absolute ${align === "left" ? "left-0" : "right-0"} top-full mt-1.5 z-40 w-max max-w-[240px] rounded-xl bg-[var(--text)] text-white text-xs leading-relaxed px-3 py-2 shadow-lg`}
         >
           {children}
         </span>

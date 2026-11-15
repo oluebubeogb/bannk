@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 export const OPTIONS = () => paystackPreflight();
 
 const schema = z.object({
+  metadata: z.any().optional(),
   key: z.string().min(8),
   email: z.string().email(),
   amount: koboAmountSchema,
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
       customerEmail: d.email,
       redirectUrl: d.callback_url,
       apiFlavor: "paystack",
+      metadata: d.metadata,
     });
     const t = await prisma.devTransaction.findUnique({ where: { transactionReference: v.transactionReference } });
     return withCors(paystackOk("Authorization URL created", paystackInitData({

@@ -9,6 +9,7 @@ export type InitInput = {
   customerEmail?: string;
   redirectUrl?: string;
   apiFlavor?: "monnify" | "paystack";
+  metadata?: unknown;
 };
 
 export type TxView = {

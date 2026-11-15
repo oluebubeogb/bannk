@@ -16,6 +16,7 @@ const cardSchema = z.object({
 });
 
 const schema = z.object({
+  metadata: z.any().optional(),
   email: z.string().email(),
   amount: koboAmountSchema,
   currency: z.string().default("NGN"),
@@ -56,6 +57,7 @@ export const POST = paystackApi(async (req, _c, log) => {
         customerEmail: d.email,
         redirectUrl: undefined,
         apiFlavor: "paystack",
+        metadata: d.metadata,
       });
 
   if (!d.pin) {

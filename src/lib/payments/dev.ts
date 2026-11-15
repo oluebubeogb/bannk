@@ -95,6 +95,7 @@ export const devProvider: PaymentProvider = {
         paymentReference: input.paymentReference, amountMinor: input.amountMinor, currency: input.currency,
         description: input.description, customerName: input.customerName, customerEmail: input.customerEmail, redirectUrl: input.redirectUrl,
         accessCode: newAccessCode(), apiFlavor: input.apiFlavor || "monnify",
+        metadata: input.metadata === undefined ? null : (typeof input.metadata === "string" ? input.metadata : JSON.stringify(input.metadata)),
       },
     });
     return toView(t);

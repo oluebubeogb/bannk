@@ -30,6 +30,7 @@ export const POST = paystackApi(async (req, _c, log) => {
     customerName: d.metadata && typeof d.metadata === "object" && "customerName" in d.metadata ? String((d.metadata as any).customerName) : undefined,
     redirectUrl: d.callback_url,
     apiFlavor: "paystack",
+    metadata: d.metadata,
   });
   const t = await prisma.devTransaction.findUnique({ where: { transactionReference: v.transactionReference } });
   log.summary = `psk init ${reference} ${d.currency} ${d.amount}`;

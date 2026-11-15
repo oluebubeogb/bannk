@@ -573,6 +573,7 @@ model DevTransaction {
   accessCode           String?   @unique
   apiFlavor            String    @default("monnify") // monnify | paystack
   lastFailureCode      String?
+  metadata             String? // JSON echoed back on Paystack verify
   paidAt               DateTime?
   createdAt            DateTime  @default(now())
 
