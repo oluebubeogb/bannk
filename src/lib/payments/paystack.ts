@@ -35,6 +35,9 @@ type TxLike = {
   accessCode?: string | null;
   description?: string | null;
   metadata?: string | null;
+  authorizationCode?: string | null;
+  cardExpMonth?: number | null;
+  cardExpYear?: number | null;
 };
 
 function parseMeta(v?: string | null): unknown {
@@ -45,6 +48,7 @@ function parseMeta(v?: string | null): unknown {
 export function toPaystackTransaction(t: TxLike) {
   const amount = Number(t.amountMinor);
   const success = t.status === "PAID";
+  const failed = t.status === "FAILED";
   const gateway = success
     ? "Successful"
     : t.lastFailureCode === "EXPIRED_CARD" ? "Expired Card"
@@ -56,7 +60,7 @@ export function toPaystackTransaction(t: TxLike) {
   return {
     id: toPaystackId(t.id),
     domain: "test",
-    status: success ? "success" : "abandoned",
+    status: success ? "success" : failed ? "failed" : "abandoned",
     reference: t.paymentReference,
     amount,
     currency: t.currency || "NGN",
@@ -74,20 +78,40 @@ export function toPaystackTransaction(t: TxLike) {
       customer_code: t.customerEmail ? `CUS_${createHash("sha256").update(String(t.customerEmail)).digest("hex").slice(0, 10)}` : null,
     },
     authorization: t.cardLast4 ? {
-      authorization_code: `AUTH_${createHash("sha256").update(t.id).digest("hex").slice(0, 10)}`,
+      authorization_code: t.authorizationCode || `AUTH_${createHash("sha256").update(t.id).digest("hex").slice(0, 10)}`,
       bin: "000000",
       last4: t.cardLast4,
-      exp_month: null,
-      exp_year: null,
+      exp_month: t.cardExpMonth ? String(t.cardExpMonth).padStart(2, "0") : null,
+      exp_year: t.cardExpYear ? String(t.cardExpYear) : null,
       channel: "card",
       card_type: (t.cardBrand || "").toLowerCase(),
-      bank: null,
+      bank: "Bannk Sandbox",
+      country_code: "NG",
       brand: (t.cardBrand || "").toLowerCase(),
-      reusable: false,
+      reusable: !!t.authorizationCode,
+      signature: t.authorizationCode ? `SIG_${createHash("sha256").update(t.authorizationCode).digest("hex").slice(0, 16)}` : null,
+      account_name: null,
     } : null,
     access_code: t.accessCode || null,
     requested_amount: amount,
   };
+}
+
+/** New reusable authorization token (opaque, random; maps to non-sensitive card facts only). */
+export function newAuthorizationCode() {
+  return `AUTH_${randomBytes(6).toString("hex")}`;
+}
+
+/** Normalised expiry from card input (month 1-12, four-digit year). Not sensitive. */
+export function cardExpiry(card: Pick<CardInput, "expiryMonth" | "expiryYear">) {
+  const month = Number(card.expiryMonth);
+  let year = Number(card.expiryYear);
+  if (year < 100) year += 2000;
+  return { month, year };
+}
+
+export function isExpired(month: number, year: number, now = new Date()) {
+  return year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1);
 }
 
 export function paystackInitData(t: { transactionReference: string; paymentReference: string; accessCode?: string | null }) {

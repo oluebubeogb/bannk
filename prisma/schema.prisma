@@ -544,11 +544,33 @@ model DevApiKey {
   lastUsedAt    DateTime?
   createdAt     DateTime  @default(now())
 
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions DevTransaction[]
-  logs         DevApiLog[]
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions       DevTransaction[]
+  logs               DevApiLog[]
+  cardAuthorizations DevCardAuthorization[]
 
   @@index([userId])
+}
+
+/// Reusable card token for Paystack-style charge_authorization. Holds only non-sensitive
+/// card facts (brand, last4, expiry) — never the PAN, CVV or PIN.
+model DevCardAuthorization {
+  id             String    @id @default(cuid())
+  code           String    @unique // AUTH_xxxxxxxxxx
+  merchantUserId String
+  apiKeyId       String
+  customerEmail  String
+  cardBrand      String
+  last4          String
+  expMonth       Int
+  expYear        Int
+  active         Boolean   @default(true)
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  apiKey DevApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([merchantUserId, customerEmail])
 }
 
 model DevTransaction {
@@ -574,6 +596,9 @@ model DevTransaction {
   apiFlavor            String    @default("monnify") // monnify | paystack
   lastFailureCode      String?
   metadata             String? // JSON echoed back on Paystack verify
+  authorizationCode    String? // reusable Paystack-style AUTH_ token (card payments only)
+  cardExpMonth         Int?
+  cardExpYear          Int?
   paidAt               DateTime?
   createdAt            DateTime  @default(now())
 

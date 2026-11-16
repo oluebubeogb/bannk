@@ -161,6 +161,18 @@ POST ${base}/charge/submit_pin { "reference": "…", "pin": "1234" }
 PIN 0000 = Insufficient Funds, 1111 = Invalid card details,
 past expiry = Expired Card.
 
+Saved cards (subscriptions / renewals):
+verify and the charge.success webhook include a reusable
+data.authorization { authorization_code, reusable: true, last4,
+exp_month, exp_year, card_type, bank } for card payments.
+POST ${base}/transaction/charge_authorization
+{ "email": "ada@x.com", "amount": 500000,
+  "authorization_code": "AUTH_…", "reference": "renew-1002" }
+→ data.status success | failed (gateway_response says why)
+Expired saved card = Expired Card. Bannk-only test field
+"sandbox_pin": "0000" | "1111" simulates a decline.
+POST ${base}/customer/deactivate_authorization { "authorization_code": "AUTH_…" }
+
 Webhook (Paystack-initiated payments):
 header x-paystack-signature: HMAC-SHA512(rawBody, secret key)
 { "event": "charge.success", "data": { …verify body } }

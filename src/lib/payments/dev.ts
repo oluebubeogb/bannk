@@ -3,11 +3,11 @@ import { prisma } from "../prisma";
 import { HttpError } from "../api";
 import { executeTransfer, ensureWallet, getOrCreateIssuanceAccount, postJournal } from "../ledger";
 import { verifyUserPin } from "../pin";
-import { CardError, evaluateSandboxCard, type CardMessageFlavor } from "./card";
+import { CARD_MESSAGES, CardError, evaluateSandboxCard, type CardMessageFlavor } from "./card";
 import { openSecret } from "../devmode";
 import type { Merchant, PaymentProvider, TxView } from "./types";
 import type { DevTransaction as PrismaDevTransaction } from "@prisma/client";
-import { toPaystackTransaction } from "./paystack";
+import { cardExpiry, isExpired, newAuthorizationCode, toPaystackTransaction } from "./paystack";
 type DevTransaction = Omit<PrismaDevTransaction, "amountMinor"> & { amountMinor: number };
 
 const appUrl = () => (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
@@ -82,6 +82,80 @@ function fireWebhook(id: string) {
   }, 0);
 }
 
+/** Credit the merchant wallet for an approved card payment, mark it PAID and fire the webhook. */
+async function settleCardPayment(
+  t: { id: string; merchantUserId: string; currency: string; amountMinor: number | bigint; paymentReference: string },
+  card: { brand: string; last4: string; expMonth: number; expYear: number; authorizationCode: string | null }
+) {
+  const { availableAccount } = await ensureWallet(t.merchantUserId, t.currency);
+  const issuance = await getOrCreateIssuanceAccount(t.currency);
+  const amountMinor = Number(t.amountMinor);
+  const j = await postJournal(
+    "issuance",
+    [
+      { ledgerAccountId: issuance.id, amountMinor, direction: "debit" },
+      { ledgerAccountId: availableAccount.id, amountMinor, direction: "credit" },
+    ],
+    { idempotencyKey: `devcard:${t.id}`, note: `Card payment · ${card.brand} •••• ${card.last4} · ${t.paymentReference}` }
+  );
+  const u = await prisma.devTransaction.update({
+    where: { id: t.id },
+    data: {
+      status: "PAID", paymentMethod: "CARD", cardBrand: card.brand, cardLast4: card.last4, cardExpMonth: card.expMonth, cardExpYear: card.expYear,
+      authorizationCode: card.authorizationCode, journalId: j.id, paidAt: new Date(), lastFailureCode: null,
+    },
+  });
+  fireWebhook(u.id);
+  return u;
+}
+
+export type ChargeAuthorizationInput = {
+  email: string;
+  amountMinor: number;
+  currency: string;
+  authorizationCode: string;
+  reference: string;
+  metadata?: unknown;
+  sandboxPin?: string; // Bannk-only: 0000 / 1111 simulate declines on a saved card
+};
+
+/**
+ * Paystack POST /transaction/charge_authorization against a saved token.
+ * Same decline rules as a fresh card: expired card, sandbox PIN 0000 (insufficient funds), 1111 (wrong details).
+ */
+export async function chargeAuthorization(m: Merchant, input: ChargeAuthorizationInput) {
+  const auth = await prisma.devCardAuthorization.findUnique({ where: { code: input.authorizationCode } });
+  if (!auth || auth.merchantUserId !== m.userId || !auth.active) throw new HttpError(400, "Invalid Authorization code", "INVALID_AUTHORIZATION");
+  if (auth.customerEmail !== input.email.trim().toLowerCase()) throw new HttpError(400, "Email does not match Authorization code", "EMAIL_MISMATCH");
+  const existing = await prisma.devTransaction.findUnique({ where: { apiKeyId_paymentReference: { apiKeyId: m.apiKeyId, paymentReference: input.reference } } });
+  if (existing) {
+    if (existing.status === "PAID" && existing.authorizationCode === auth.code) return { tx: existing, declined: null as null | { code: string; message: string } };
+    throw new HttpError(400, "Duplicate Transaction Reference", "DUPLICATE_REFERENCE");
+  }
+  await devProvider.initTransaction(m, {
+    amountMinor: input.amountMinor, currency: input.currency, paymentReference: input.reference, customerEmail: auth.customerEmail, apiFlavor: "paystack", metadata: input.metadata,
+  });
+  const t = await prisma.devTransaction.findUniqueOrThrow({ where: { apiKeyId_paymentReference: { apiKeyId: m.apiKeyId, paymentReference: input.reference } } });
+  await prisma.devCardAuthorization.update({ where: { id: auth.id }, data: { lastUsedAt: new Date() } });
+  const code = isExpired(auth.expMonth, auth.expYear) ? "EXPIRED_CARD" : input.sandboxPin === "0000" ? "INSUFFICIENT_FUNDS" : input.sandboxPin === "1111" ? "WRONG_DETAILS" : null;
+  const card = { brand: auth.cardBrand, last4: auth.last4, expMonth: auth.expMonth, expYear: auth.expYear, authorizationCode: auth.code };
+  if (code) {
+    const failed = await prisma.devTransaction.update({
+      where: { id: t.id },
+      data: { status: "FAILED", lastFailureCode: code, paymentMethod: "CARD", cardBrand: card.brand, cardLast4: card.last4, cardExpMonth: card.expMonth, cardExpYear: card.expYear, authorizationCode: card.authorizationCode },
+    });
+    return { tx: failed, declined: { code, message: CARD_MESSAGES.paystack[code as keyof typeof CARD_MESSAGES.paystack] } };
+  }
+  return { tx: await settleCardPayment(t, card), declined: null };
+}
+
+/** Paystack POST /customer/deactivate_authorization. */
+export async function deactivateAuthorization(m: Merchant, code: string) {
+  const auth = await prisma.devCardAuthorization.findUnique({ where: { code } });
+  if (!auth || auth.merchantUserId !== m.userId) throw new HttpError(404, "Authorization code not found", "NOT_FOUND");
+  await prisma.devCardAuthorization.update({ where: { id: auth.id }, data: { active: false } });
+}
+
 export const devProvider: PaymentProvider = {
   name: "dev",
 
@@ -113,22 +187,17 @@ export const devProvider: PaymentProvider = {
       await prisma.devTransaction.update({ where: { id: t.id }, data: { lastFailureCode: code } }).catch(() => {});
       throw e instanceof HttpError ? e : new HttpError(400, e.message, code);
     }
-    // Sandbox: valid cards (except PIN 0000 / 1111 and expired) are approved. Card data is dropped here.
-    const { availableAccount } = await ensureWallet(t.merchantUserId, t.currency);
-    const issuance = await getOrCreateIssuanceAccount(t.currency);
-    const j = await postJournal(
-      "issuance",
-      [
-        { ledgerAccountId: issuance.id, amountMinor: t.amountMinor, direction: "debit" },
-        { ledgerAccountId: availableAccount.id, amountMinor: t.amountMinor, direction: "credit" },
-      ],
-      { idempotencyKey: `devcard:${t.id}`, note: `Card payment · ${meta.brand} •••• ${meta.last4} · ${t.paymentReference}` }
-    );
-    const u = await prisma.devTransaction.update({
-      where: { id: t.id },
-      data: { status: "PAID", paymentMethod: "CARD", cardBrand: meta.brand, cardLast4: meta.last4, journalId: j.id, paidAt: new Date(), lastFailureCode: null },
-    });
-    fireWebhook(u.id);
+    // Sandbox: valid cards (except PIN 0000 / 1111 and expired) are approved. Card data is dropped here;
+    // Paystack-flavoured payments keep only a reusable token mapped to brand, last4 and expiry.
+    const exp = cardExpiry(card);
+    let authorizationCode: string | null = null;
+    if (t.apiFlavor === "paystack" && t.customerEmail) {
+      authorizationCode = newAuthorizationCode();
+      await prisma.devCardAuthorization.create({
+        data: { code: authorizationCode, merchantUserId: t.merchantUserId, apiKeyId: t.apiKeyId, customerEmail: t.customerEmail.toLowerCase(), cardBrand: meta.brand, last4: meta.last4, expMonth: exp.month, expYear: exp.year },
+      });
+    }
+    const u = await settleCardPayment(t, { brand: meta.brand, last4: meta.last4, expMonth: exp.month, expYear: exp.year, authorizationCode });
     return toView(u);
   },
 
